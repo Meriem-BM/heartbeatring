@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.25;
 
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
@@ -40,17 +40,20 @@ contract HeartbeatRing is ReentrancyGuard {
 
     uint256 public constant MAX_PARTICIPANTS_LIMIT = 1000;
     uint256 public constant REGISTRATION_WINDOW = 7 days;
-    uint256 public constant LIQUIDATION_GRACE_PERIOD = 30;
+    uint256 public constant MIN_LIQUIDATION_GRACE_PERIOD = 30;
 
     Phase public phase;
+    bool private initialized;
 
-    address public immutable creator;
-    uint256 public immutable stakeAmount; // fixed deposit required to join
-    uint256 public immutable epochDuration; // seconds per epoch
-    uint256 public immutable minParticipants; // minimum to start the game
-    uint256 public immutable maxParticipants; // maximum ring size
-    uint256 public immutable liquidationBountyBps; // basis points of liquidated stake paid to caller
-    uint256 public immutable registrationDeadline; // timestamp when registration closes
+    address public immutable INITIALIZER_CALLER;
+    address public creator;
+    uint256 public stakeAmount; // fixed deposit required to join
+    uint256 public epochDuration; // seconds per epoch
+    uint256 public liquidationGracePeriod; // grace period before liquidation in each epoch
+    uint256 public minParticipants; // minimum to start the game
+    uint256 public maxParticipants; // maximum ring size
+    uint256 public liquidationBountyBps; // basis points of liquidated stake paid to caller
+    uint256 public registrationDeadline; // timestamp when registration closes
 
     uint256 public gameStartTime; // block.timestamp when game went Active
     uint256 public ringSize; // current number of alive participants in active/completed ring
@@ -84,6 +87,16 @@ contract HeartbeatRing is ReentrancyGuard {
     event Claimed(address indexed survivor, uint256 amount);
     event BountyAccrued(address indexed liquidator, uint256 amount);
     event BountyWithdrawn(address indexed liquidator, uint256 amount);
+    event Initialized(
+        address indexed creator,
+        uint256 stakeAmount,
+        uint256 epochDuration,
+        uint256 liquidationGracePeriod,
+        uint256 minParticipants,
+        uint256 maxParticipants,
+        uint256 bountyBps,
+        uint256 registrationDeadline
+    );
 
     // ------------------------------------------------------------
     // ---------------------- Errors ------------------------------
@@ -95,6 +108,11 @@ contract HeartbeatRing is ReentrancyGuard {
     error MaxParticipantsTooHigh();
     error InvalidBountyBps();
     error InvalidEpochDuration();
+    error InvalidLiquidationGracePeriod();
+    error InvalidCreator();
+    error AlreadyInitialized();
+    error NotInitialized();
+    error UnauthorizedInitializer();
     error StakeOverflow();
     error AlreadyRegistered();
     error IncorrectStake();
@@ -118,6 +136,7 @@ contract HeartbeatRing is ReentrancyGuard {
     // ------------------------------------------------------------
 
     modifier inPhase(Phase _phase) {
+        if (!initialized) revert NotInitialized();
         if (phase != _phase) revert WrongPhase(_phase, phase);
         _;
     }
@@ -126,38 +145,66 @@ contract HeartbeatRing is ReentrancyGuard {
     // ---------------------- Constructor -------------------------
     // ------------------------------------------------------------
 
+    constructor() {
+        INITIALIZER_CALLER = msg.sender; // only the factory can initialize the ring
+    }
+
+    // ------------------------------------------------------------
+    // -------------------- Initialization ------------------------
+    // ------------------------------------------------------------
     /**
+     * @notice Initializes ring parameters. Callable once per deployed instance/clone.
      * @param _stakeAmount      Wei required to join the ring
      * @param _epochDuration    Seconds per epoch (e.g., 3600 = 1 hour)
+     * @param _liquidationGracePeriod Seconds of grace after epoch rollover before liquidation
      * @param _minParticipants  Minimum players to start (>= 3 for meaningful ring)
      * @param _maxParticipants  Cap on ring size
      * @param _bountyBps        Liquidation bounty in basis points (e.g., 100 = 1%)
+     * @param _creator          Address recorded as ring creator
      */
-    constructor(
+    function initialize(
         uint256 _stakeAmount,
         uint256 _epochDuration,
+        uint256 _liquidationGracePeriod,
         uint256 _minParticipants,
         uint256 _maxParticipants,
-        uint256 _bountyBps
-    ) {
-        if (_stakeAmount == 0 || _stakeAmount > type(uint128).max) {
-            revert InvalidStakeAmount();
-        }
-        if (_minParticipants < 3 || _maxParticipants < _minParticipants) revert InvalidParticipantBounds();
-        if (_maxParticipants > MAX_PARTICIPANTS_LIMIT) revert MaxParticipantsTooHigh();
-        if (_bountyBps > 500) revert InvalidBountyBps(); // max 5%
-        if (_epochDuration < 60 || _epochDuration <= LIQUIDATION_GRACE_PERIOD) revert InvalidEpochDuration();
-        if (_stakeAmount > type(uint128).max / _maxParticipants) revert StakeOverflow();
+        uint256 _bountyBps,
+        address _creator
+    ) external {
+        if (initialized) revert AlreadyInitialized();
+        if (msg.sender != INITIALIZER_CALLER) revert UnauthorizedInitializer();
+        _validateConfig(
+            _stakeAmount,
+            _epochDuration,
+            _liquidationGracePeriod,
+            _minParticipants,
+            _maxParticipants,
+            _bountyBps,
+            _creator
+        );
 
-        creator = msg.sender;
+        creator = _creator;
         stakeAmount = _stakeAmount;
         epochDuration = _epochDuration;
+        liquidationGracePeriod = _liquidationGracePeriod;
         minParticipants = _minParticipants;
         maxParticipants = _maxParticipants;
         liquidationBountyBps = _bountyBps;
         registrationDeadline = block.timestamp + REGISTRATION_WINDOW;
 
         phase = Phase.Registration;
+        initialized = true;
+
+        emit Initialized(
+            _creator,
+            _stakeAmount,
+            _epochDuration,
+            _liquidationGracePeriod,
+            _minParticipants,
+            _maxParticipants,
+            _bountyBps,
+            registrationDeadline
+        );
     }
 
     // ------------------------------------------------------------
@@ -240,7 +287,7 @@ contract HeartbeatRing is ReentrancyGuard {
         if (epoch == 0 || uint256(t.lastBeat) >= epoch) revert NotDelinquent();
 
         uint256 epochStart = gameStartTime + (epoch * epochDuration);
-        if (block.timestamp < epochStart + LIQUIDATION_GRACE_PERIOD) revert GracePeriodActive();
+        if (block.timestamp < epochStart + liquidationGracePeriod) revert GracePeriodActive();
 
         address leftBeneficiary = t.prev;
         address rightBeneficiary = t.next;
@@ -467,7 +514,7 @@ contract HeartbeatRing is ReentrancyGuard {
         if (!p.alive || uint256(p.lastBeat) >= epoch) return false;
 
         uint256 epochStart = gameStartTime + (epoch * epochDuration);
-        return block.timestamp >= epochStart + LIQUIDATION_GRACE_PERIOD;
+        return block.timestamp >= epochStart + liquidationGracePeriod;
     }
 
     /**
@@ -507,6 +554,13 @@ contract HeartbeatRing is ReentrancyGuard {
         return epochDuration - elapsed;
     }
 
+    /**
+     * @notice Helper function to recalculate the liquidation amounts.
+     * @param totalStake The total stake of the participant to be liquidated.
+     * @return bounty The bounty amount to be paid to the liquidator.
+     * @return leftShare The amount to be paid to the left neighbor.
+     * @return rightShare The amount to be paid to the right neighbor.
+     */
     function _computeLiquidationAmounts(uint256 totalStake)
         internal
         view
@@ -516,5 +570,31 @@ contract HeartbeatRing is ReentrancyGuard {
         uint256 distributable = totalStake - bounty;
         leftShare = distributable / 2;
         rightShare = distributable - leftShare;
+    }
+
+    /**
+     * @notice Validates the configuration of the ring.
+     */
+    function _validateConfig(
+        uint256 _stakeAmount,
+        uint256 _epochDuration,
+        uint256 _liquidationGracePeriod,
+        uint256 _minParticipants,
+        uint256 _maxParticipants,
+        uint256 _bountyBps,
+        address _creator
+    ) internal pure {
+        if (_stakeAmount == 0 || _stakeAmount > type(uint128).max) {
+            revert InvalidStakeAmount();
+        }
+        if (_minParticipants < 3 || _maxParticipants < _minParticipants) revert InvalidParticipantBounds();
+        if (_maxParticipants > MAX_PARTICIPANTS_LIMIT) revert MaxParticipantsTooHigh();
+        if (_bountyBps > 500) revert InvalidBountyBps(); // max 5%
+        if (_epochDuration < 60) revert InvalidEpochDuration();
+        if (_liquidationGracePeriod < MIN_LIQUIDATION_GRACE_PERIOD || _liquidationGracePeriod >= _epochDuration) {
+            revert InvalidLiquidationGracePeriod();
+        }
+        if (_creator == address(0)) revert InvalidCreator();
+        if (_stakeAmount > type(uint128).max / _maxParticipants) revert StakeOverflow();
     }
 }

@@ -48,8 +48,18 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ make deploy-testnet
+$ make deploy-mainnet
 ```
+
+or directly:
+
+```shell
+$ forge script script/DeployHeartbeatRing.s.sol:DeployHeartbeatRing --rpc-url rsk_testnet --broadcast -vvvv
+$ forge script script/DeployHeartbeatRing.s.sol:DeployHeartbeatRing --rpc-url rsk_mainnet --broadcast -vvvv
+```
+
+`DeployHeartbeatRing` reads parameters from `.env` (including `LIQUIDATION_GRACE_PERIOD`).
 
 ### Cast
 
