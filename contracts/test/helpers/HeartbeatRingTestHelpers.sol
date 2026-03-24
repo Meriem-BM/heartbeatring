@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.25;
 
 import {HeartbeatRing} from "../../src/HeartbeatRing.sol";
 
@@ -14,14 +14,6 @@ contract RevertingReceiver {
  *      in normal game flow without synthetic state setup.
  */
 contract HeartbeatRingHarness is HeartbeatRing {
-    constructor(
-        uint256 _stakeAmount,
-        uint256 _epochDuration,
-        uint256 _minParticipants,
-        uint256 _maxParticipants,
-        uint256 _bountyBps
-    ) HeartbeatRing(_stakeAmount, _epochDuration, _minParticipants, _maxParticipants, _bountyBps) {}
-
     /**
      * @dev Forces a participant's stake and alive state.
      * @param who The address of the participant to force.

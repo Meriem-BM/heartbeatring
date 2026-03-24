@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.25;
 
 import {Test} from "forge-std/Test.sol";
 
@@ -9,6 +9,7 @@ import {HeartbeatRingHarness, RevertingReceiver} from "./helpers/HeartbeatRingTe
 contract HeartbeatRingTest is Test {
     uint256 internal constant STAKE = 1 ether;
     uint256 internal constant EPOCH = 1 days;
+    uint256 internal constant GRACE = 10 minutes;
     uint256 internal constant MIN = 3;
     uint256 internal constant MAX = 5;
     uint256 internal constant BOUNTY_BPS = 100; // 1%
@@ -28,47 +29,80 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // --------------------- Constructor Tests --------------------
+    // -------------------- Initialization Tests ------------------
     // ------------------------------------------------------------
 
-    function test_constructor_setsDefaults() external {
+    function test_initialize_setsDefaults() external {
         HeartbeatRing ring = _deployDefault();
 
         assertEq(uint256(ring.phase()), uint256(HeartbeatRing.Phase.Registration));
         assertEq(ring.creator(), address(this));
         assertEq(ring.stakeAmount(), STAKE);
         assertEq(ring.epochDuration(), EPOCH);
+        assertEq(ring.liquidationGracePeriod(), GRACE);
         assertEq(ring.minParticipants(), MIN);
         assertEq(ring.maxParticipants(), MAX);
         assertEq(ring.liquidationBountyBps(), BOUNTY_BPS);
         assertEq(ring.registrationDeadline(), block.timestamp + ring.REGISTRATION_WINDOW());
     }
 
-    function test_constructor_revertsOnInvalidInputs() external {
+    function test_initialize_revertsOnInvalidInputs() external {
+        HeartbeatRing ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidStakeAmount.selector);
-        new HeartbeatRing(0, EPOCH, MIN, MAX, BOUNTY_BPS);
+        ring.initialize(0, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidStakeAmount.selector);
-        new HeartbeatRing(uint256(type(uint128).max) + 1, EPOCH, MIN, MAX, BOUNTY_BPS);
+        ring.initialize(uint256(type(uint128).max) + 1, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidParticipantBounds.selector);
-        new HeartbeatRing(STAKE, EPOCH, 2, MAX, BOUNTY_BPS);
+        ring.initialize(STAKE, EPOCH, GRACE, 2, MAX, BOUNTY_BPS, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidParticipantBounds.selector);
-        new HeartbeatRing(STAKE, EPOCH, 5, 4, BOUNTY_BPS);
+        ring.initialize(STAKE, EPOCH, GRACE, 5, 4, BOUNTY_BPS, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.MaxParticipantsTooHigh.selector);
-        new HeartbeatRing(STAKE, EPOCH, MIN, 1001, BOUNTY_BPS);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, 1001, BOUNTY_BPS, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidBountyBps.selector);
-        new HeartbeatRing(STAKE, EPOCH, MIN, MAX, 501);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, 501, address(this));
 
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.InvalidEpochDuration.selector);
-        new HeartbeatRing(STAKE, 59, MIN, MAX, BOUNTY_BPS);
+        ring.initialize(STAKE, 59, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
+
+        ring = new HeartbeatRing();
+        vm.expectRevert(HeartbeatRing.InvalidLiquidationGracePeriod.selector);
+        ring.initialize(STAKE, EPOCH, 29, MIN, MAX, BOUNTY_BPS, address(this));
+
+        ring = new HeartbeatRing();
+        vm.expectRevert(HeartbeatRing.InvalidLiquidationGracePeriod.selector);
+        ring.initialize(STAKE, EPOCH, EPOCH, MIN, MAX, BOUNTY_BPS, address(this));
+
+        ring = new HeartbeatRing();
+        vm.expectRevert(HeartbeatRing.InvalidCreator.selector);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(0));
 
         uint256 overflowingStake = uint256(type(uint128).max) / 1000 + 1;
+        ring = new HeartbeatRing();
         vm.expectRevert(HeartbeatRing.StakeOverflow.selector);
-        new HeartbeatRing(overflowingStake, EPOCH, MIN, 1000, BOUNTY_BPS);
+        ring.initialize(overflowingStake, EPOCH, GRACE, MIN, 1000, BOUNTY_BPS, address(this));
+
+        ring = _deployDefault();
+        vm.expectRevert(HeartbeatRing.AlreadyInitialized.selector);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
+    }
+
+    function test_initialize_revertsWhenUnauthorizedCaller() external {
+        HeartbeatRing ring = new HeartbeatRing();
+
+        vm.prank(alice);
+        vm.expectRevert(HeartbeatRing.UnauthorizedInitializer.selector);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, alice);
     }
 
     // ------------------------------------------------------------
@@ -117,7 +151,8 @@ contract HeartbeatRingTest is Test {
         vm.expectRevert(HeartbeatRing.RegistrationClosed.selector);
         ring.register{value: STAKE}();
 
-        HeartbeatRing small = new HeartbeatRing(STAKE, EPOCH, 3, 3, BOUNTY_BPS);
+        HeartbeatRing small = new HeartbeatRing();
+        small.initialize(STAKE, EPOCH, GRACE, 3, 3, BOUNTY_BPS, address(this));
         _register(small, alice);
         _register(small, bob);
         _register(small, carol);
@@ -186,7 +221,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
@@ -206,7 +241,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
 
         vm.expectEmit(true, true, false, true);
         emit HeartbeatRing.Heartbeat(alice, 1);
@@ -235,12 +270,12 @@ contract HeartbeatRingTest is Test {
         vm.expectRevert(HeartbeatRing.NotDelinquent.selector);
         ring.liquidate(alice);
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD() - 1);
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod() - 1);
         vm.prank(liquidator);
         vm.expectRevert(HeartbeatRing.GracePeriodActive.selector);
         ring.liquidate(alice);
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(alice);
         ring.heartbeat();
 
@@ -261,7 +296,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
@@ -300,7 +335,7 @@ contract HeartbeatRingTest is Test {
         }
 
         uint256 epoch2 = 2;
-        vm.warp(ring.gameStartTime() + (epoch2 * EPOCH) + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + (epoch2 * EPOCH) + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(alice);
 
@@ -324,7 +359,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(carol);
 
@@ -333,11 +368,12 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_liquidate_withZeroBountyDoesNotAccrue() external {
-        HeartbeatRing ring = new HeartbeatRing(STAKE, EPOCH, MIN, MAX, 0);
+        HeartbeatRing ring = new HeartbeatRing();
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, 0, address(this));
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
@@ -415,7 +451,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_claim_revertsWhenAliveButStakeIsZero() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRingHarness ring = new HeartbeatRingHarness();
         ring.forcePhase(HeartbeatRing.Phase.Completed);
         ring.forceParticipant(alice, 0, true);
 
@@ -434,7 +470,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
@@ -457,7 +493,7 @@ contract HeartbeatRingTest is Test {
         vm.expectRevert(HeartbeatRing.InvalidRecipient.selector);
         ring.withdrawBountyTo(payable(address(0)));
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
@@ -562,7 +598,8 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_refundRegistration_revertsWhenAliveButStakeIsZero() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRingHarness ring = new HeartbeatRingHarness();
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
         ring.forceParticipant(alice, 0, true);
 
         vm.warp(ring.registrationDeadline() + 1);
@@ -571,7 +608,8 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_refundRegistration_hitsFallbackHeadTailUnlinkChecks() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRingHarness ring = new HeartbeatRingHarness();
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
         address fakePrev = makeAddr("fakePrev");
         address fakeNext = makeAddr("fakeNext");
 
@@ -590,7 +628,7 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // --------------- View functions / edge branches -------------  
+    // --------------- View functions / edge branches -------------
     // ------------------------------------------------------------
 
     function test_viewFunctions_epochDelinquencyAndRing() external {
@@ -613,10 +651,10 @@ contract HeartbeatRingTest is Test {
         assertEq(startRing[1], bob);
         assertEq(startRing[2], carol);
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD() - 1);
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod() - 1);
         assertFalse(ring.isDelinquent(bob));
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         assertTrue(ring.isDelinquent(bob));
 
         vm.prank(bob);
@@ -635,7 +673,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_getRing_revertsWhenInvariantIsBroken() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRingHarness ring = new HeartbeatRingHarness();
 
         // This synthetic state forces the traversal guard branch.
         ring.forceRingMeta(1, 0, alice, address(0));
@@ -645,7 +683,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_addStake_overflowGuard() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRingHarness ring = new HeartbeatRingHarness();
         ring.forceParticipant(alice, type(uint128).max, true);
 
         vm.expectRevert(HeartbeatRing.StakeOverflow.selector);
@@ -657,7 +695,9 @@ contract HeartbeatRingTest is Test {
     // ------------------------------------------------------------
 
     function _deployDefault() internal returns (HeartbeatRing) {
-        return new HeartbeatRing(STAKE, EPOCH, MIN, MAX, BOUNTY_BPS);
+        HeartbeatRing ring = new HeartbeatRing();
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
+        return ring;
     }
 
     function _register(HeartbeatRing ring, address who) internal {
@@ -672,11 +712,11 @@ contract HeartbeatRingTest is Test {
     }
 
     function _completeToSingleSurvivor(HeartbeatRing ring) internal {
-        vm.warp(ring.gameStartTime() + EPOCH + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(bob);
 
-        vm.warp(ring.gameStartTime() + (2 * EPOCH) + ring.LIQUIDATION_GRACE_PERIOD());
+        vm.warp(ring.gameStartTime() + (2 * EPOCH) + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         ring.liquidate(alice);
     }
