@@ -44,6 +44,10 @@ contract MinimalProxyHRFactory {
 
     constructor() {
         implementation = address(new HeartbeatRing());
+        // Lock the implementation so it cannot be initialized by an attacker.
+        // Best practice for EIP-1167 proxy patterns: initialize the implementation
+        // immediately with dummy values to prevent any future unauthorized initialization.
+        HeartbeatRing(implementation).initialize(1, 60, 30, 3, 3, 0, address(this));
         emit ImplementationDeployed(implementation);
     }
 

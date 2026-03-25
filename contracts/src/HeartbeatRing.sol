@@ -45,6 +45,10 @@ contract HeartbeatRing is ReentrancyGuard {
     Phase public phase;
     bool private initialized;
 
+    // Immutables are baked into the deployed bytecode of the implementation contract and are
+    // correctly inherited by all EIP-1167 minimal proxies via DELEGATECALL. Every clone will
+    // read this value from the implementation's bytecode, so only the factory (msg.sender at
+    // construction time) is ever permitted to call initialize().
     address public immutable INITIALIZER_CALLER;
     address public creator;
     uint256 public stakeAmount; // fixed deposit required to join
