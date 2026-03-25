@@ -2,7 +2,28 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Copy the example env file first:
+
+```bash
+cp .env.example .env.local
+```
+
+The interface ships with the current Rootstock testnet factory baked in:
+
+```bash
+0x52C37e8364290F3A5f293D6D4ef9852B2d7D0542
+```
+
+For network overrides:
+
+```bash
+NEXT_PUBLIC_FACTORY_ADDRESS_TESTNET=0x...
+NEXT_PUBLIC_FACTORY_ADDRESS_MAINNET=0x...
+NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_TESTNET=https://your-testnet-logs-rpc
+NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_MAINNET=https://your-mainnet-logs-rpc
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
