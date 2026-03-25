@@ -145,9 +145,29 @@ contract HeartbeatRing is ReentrancyGuard {
     // ---------------------- Constructor -------------------------
     // ------------------------------------------------------------
 
+    /**
+     * @notice Sets immutable initializer authority and permanently locks the implementation instance.
+     * @dev Security rationale:
+     *      - This contract is used as an EIP-1167 implementation for minimal proxies.
+     *      - Uninitialized implementations are a known proxy footgun.
+     *      - We set `initialized = true` here so the implementation contract itself can never be initialized.
+     * @dev Clone behavior:
+     *      - Clones do not execute constructors.
+     *      - Clones use separate storage, so each clone still starts with `initialized == false`
+     *        and is initialized once by the factory in `createRing`.
+     * @dev `INITIALIZER_CALLER` is immutable in implementation bytecode.
+     *      During clone calls (DELEGATECALL), this immutable still resolves to the factory address
+     *      that deployed the implementation.
+     */
     constructor() {
-        INITIALIZER_CALLER = msg.sender; // only the factory can initialize the ring
+        // Factory that deployed the implementation and is allowed to call initialize on clones.
+        INITIALIZER_CALLER = msg.sender;
+
+        // Lock implementation storage to prevent direct initialization/use of the implementation contract.
+        initialized = true;
+        phase = Phase.Completed;
     }
+
 
     // ------------------------------------------------------------
     // -------------------- Initialization ------------------------
@@ -282,6 +302,8 @@ contract HeartbeatRing is ReentrancyGuard {
     /**
      * @notice Liquidate a participant who missed the current epoch's heartbeat.
      * @dev Anyone can call this (permissionless). Caller bounty is accrued and withdrawn separately.
+     * @dev No nonReentrant needed: this function does not transfer ETH.
+     * @dev Bounties are accrued to `pendingBounties` and withdrawn via `withdrawBounty()`.
      * @param target The address of the delinquent participant
      */
     function liquidate(address target) external inPhase(Phase.Active) {
