@@ -2,11 +2,14 @@
 pragma solidity ^0.8.25;
 
 import {Test} from "forge-std/Test.sol";
+import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 
 import {HeartbeatRing} from "../src/HeartbeatRing.sol";
 import {HeartbeatRingHarness, RevertingReceiver} from "./helpers/HeartbeatRingTestHelpers.sol";
 
 contract HeartbeatRingTest is Test {
+    using Clones for address;
+
     uint256 internal constant STAKE = 1 ether;
     uint256 internal constant EPOCH = 1 days;
     uint256 internal constant GRACE = 10 minutes;
@@ -47,48 +50,48 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_initialize_revertsOnInvalidInputs() external {
-        HeartbeatRing ring = new HeartbeatRing();
+        HeartbeatRing ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidStakeAmount.selector);
         ring.initialize(0, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidStakeAmount.selector);
         ring.initialize(uint256(type(uint128).max) + 1, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidParticipantBounds.selector);
         ring.initialize(STAKE, EPOCH, GRACE, 2, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidParticipantBounds.selector);
         ring.initialize(STAKE, EPOCH, GRACE, 5, 4, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.MaxParticipantsTooHigh.selector);
         ring.initialize(STAKE, EPOCH, GRACE, MIN, 1001, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidBountyBps.selector);
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, 501, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidEpochDuration.selector);
         ring.initialize(STAKE, 59, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidLiquidationGracePeriod.selector);
         ring.initialize(STAKE, EPOCH, 29, MIN, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidLiquidationGracePeriod.selector);
         ring.initialize(STAKE, EPOCH, EPOCH, MIN, MAX, BOUNTY_BPS, address(this));
 
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.InvalidCreator.selector);
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(0));
 
         uint256 overflowingStake = uint256(type(uint128).max) / 1000 + 1;
-        ring = new HeartbeatRing();
+        ring = _deployUninitializedClone();
         vm.expectRevert(HeartbeatRing.StakeOverflow.selector);
         ring.initialize(overflowingStake, EPOCH, GRACE, MIN, 1000, BOUNTY_BPS, address(this));
 
@@ -98,7 +101,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_phaseGuard_revertsWhenNotInitialized() external {
-        HeartbeatRing ring = new HeartbeatRing();
+        HeartbeatRing ring = _deployUninitializedClone();
 
         vm.prank(alice);
         vm.expectRevert(HeartbeatRing.NotInitialized.selector);
@@ -106,7 +109,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_initialize_revertsWhenUnauthorizedCaller() external {
-        HeartbeatRing ring = new HeartbeatRing();
+        HeartbeatRing ring = _deployUninitializedClone();
 
         vm.prank(alice);
         vm.expectRevert(HeartbeatRing.UnauthorizedInitializer.selector);
@@ -159,7 +162,7 @@ contract HeartbeatRingTest is Test {
         vm.expectRevert(HeartbeatRing.RegistrationClosed.selector);
         ring.register{value: STAKE}();
 
-        HeartbeatRing small = new HeartbeatRing();
+        HeartbeatRing small = _deployUninitializedClone();
         small.initialize(STAKE, EPOCH, GRACE, 3, 3, BOUNTY_BPS, address(this));
         _register(small, alice);
         _register(small, bob);
@@ -394,7 +397,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_liquidate_withZeroBountyDoesNotAccrue() external {
-        HeartbeatRing ring = new HeartbeatRing();
+        HeartbeatRing ring = _deployUninitializedClone();
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, 0, address(this));
         _register3(ring);
         ring.startGame();
@@ -625,7 +628,7 @@ contract HeartbeatRingTest is Test {
 
     function test_refundRegistration_revertsWhenAliveButStakeIsZero() external {
         HeartbeatRingHarness ring = new HeartbeatRingHarness();
-        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
+        ring.forcePhase(HeartbeatRing.Phase.Registration);
         ring.forceParticipant(alice, 0, true);
 
         vm.warp(ring.registrationDeadline() + 1);
@@ -704,8 +707,13 @@ contract HeartbeatRingTest is Test {
     // --------------------- Helper Functions ---------------------
     // ------------------------------------------------------------
 
+    function _deployUninitializedClone() internal returns (HeartbeatRing) {
+        HeartbeatRing implementation = new HeartbeatRing();
+        return HeartbeatRing(address(implementation).clone());
+    }
+
     function _deployDefault() internal returns (HeartbeatRing) {
-        HeartbeatRing ring = new HeartbeatRing();
+        HeartbeatRing ring = _deployUninitializedClone();
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
         return ring;
     }

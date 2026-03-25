@@ -2,11 +2,14 @@
 pragma solidity ^0.8.25;
 
 import {Test} from "forge-std/Test.sol";
+import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 
 import {HeartbeatRing} from "../src/HeartbeatRing.sol";
 import {MinimalProxyHRFactory} from "../src/MinimalProxyHRFactory.sol";
 
 contract MinimalProxyHRFactoryTest is Test {
+    using Clones for address;
+
     uint256 internal constant STAKE = 1 ether;
     uint256 internal constant EPOCH = 1 days;
     uint256 internal constant GRACE = 10 minutes;
@@ -49,8 +52,17 @@ contract MinimalProxyHRFactoryTest is Test {
 
     function test_implementation_rejectsExternalInitialization() external {
         HeartbeatRing impl = HeartbeatRing(factory.implementation());
-        vm.expectRevert(HeartbeatRing.UnauthorizedInitializer.selector);
+        vm.expectRevert(HeartbeatRing.AlreadyInitialized.selector);
         impl.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, alice);
+    }
+
+    function test_clone_rejectsExternalInitializationWhenCallerIsNotFactory() external {
+        address ringAddr = factory.implementation().clone();
+        HeartbeatRing ring = HeartbeatRing(ringAddr);
+
+        vm.prank(alice);
+        vm.expectRevert(HeartbeatRing.UnauthorizedInitializer.selector);
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, alice);
     }
 
     function test_createRing_supportsMultipleCreators() external {
