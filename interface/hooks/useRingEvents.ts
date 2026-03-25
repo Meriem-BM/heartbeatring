@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef } from "react";
 import { getAddress } from "viem";
 
 import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
@@ -20,88 +21,69 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
     () => createLogsPublicClientForNetwork(selectedNetwork.key),
     [selectedNetwork.key],
   );
-  const [entries, setEntries] = useState<EventEntry[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const lastProcessedBlockRef = useRef<bigint | null>(null);
+  const logsUnavailableRef = useRef(false);
+  const accumulatedEntriesRef = useRef<EventEntry[]>([]);
 
-  useEffect(() => {
-    setEntries([]);
-    setLoadError(null);
-    setLoading(true);
-
-    let cancelled = false;
-    let logsUnavailable = false;
-    let initialized = false;
-    let lastProcessedBlock: bigint | null = null;
-
-    async function loadEvents() {
-      if (!initialized && !cancelled) {
-        setLoading(true);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["ringEvents", normalizedAddress, selectedNetwork.key],
+    queryFn: async () => {
+      if (logsUnavailableRef.current) {
+        return accumulatedEntriesRef.current;
       }
 
-      try {
-        const latestBlock = await publicClient.getBlockNumber();
-        const fromBlock =
-          lastProcessedBlock === null ? LOGS_FROM_BLOCK : lastProcessedBlock + 1n;
+      const latestBlock = await publicClient.getBlockNumber();
+      const fromBlock =
+        lastProcessedBlockRef.current === null
+          ? LOGS_FROM_BLOCK
+          : lastProcessedBlockRef.current + 1n;
 
-        if (fromBlock > latestBlock) {
-          lastProcessedBlock = latestBlock;
-          return;
-        }
-
-        const logs = await publicClient.getLogs({
-          address: normalizedAddress,
-          fromBlock,
-          toBlock: latestBlock,
-        });
-
-        if (!cancelled) {
-          const nextEntries = buildEventEntries(
-            logs as RawLog[],
-            selectedNetwork.chain.nativeCurrency.symbol,
-          );
-          setEntries((current) => mergeEventEntries(current, nextEntries));
-          setLoadError(null);
-        }
-
-        lastProcessedBlock = latestBlock;
-      } catch (error) {
-        const nextError = getErrorMessage(error, "Failed to load events.");
-
-        if (nextError === LOGS_UNAVAILABLE_MESSAGE) {
-          logsUnavailable = true;
-        }
-
-        if (!cancelled) {
-          setLoadError(nextError);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-
-        initialized = true;
+      if (fromBlock > latestBlock) {
+        lastProcessedBlockRef.current = latestBlock;
+        return accumulatedEntriesRef.current;
       }
-    }
 
-    void loadEvents();
+      const logs = await publicClient.getLogs({
+        address: normalizedAddress,
+        fromBlock,
+        toBlock: latestBlock,
+      });
 
-    const interval = window.setInterval(() => {
-      if (!logsUnavailable) {
-        void loadEvents();
-      }
-    }, CONTRACT_POLL_INTERVAL_MS);
+      const nextEntries = buildEventEntries(
+        logs as RawLog[],
+        selectedNetwork.chain.nativeCurrency.symbol,
+      );
 
-    return () => {
-      cancelled = true;
+      const merged = mergeEventEntries(
+        accumulatedEntriesRef.current,
+        nextEntries,
+      );
 
-      window.clearInterval(interval);
-    };
-  }, [normalizedAddress, publicClient, selectedNetwork.chain.nativeCurrency.symbol]);
+      lastProcessedBlockRef.current = latestBlock;
+      accumulatedEntriesRef.current = merged;
+      return merged;
+    },
+    refetchInterval: CONTRACT_POLL_INTERVAL_MS,
+    meta: {
+      onSettled: (_data: unknown, queryError: unknown) => {
+        if (
+          queryError &&
+          getErrorMessage(queryError) === LOGS_UNAVAILABLE_MESSAGE
+        ) {
+          logsUnavailableRef.current = true;
+        }
+      },
+    },
+  });
+
+  const loadError =
+    error && !logsUnavailableRef.current
+      ? getErrorMessage(error, "Failed to load events.")
+      : null;
 
   return {
-    entries,
+    entries: data ?? accumulatedEntriesRef.current,
     loadError,
-    loading,
+    loading: isLoading,
   };
 }
