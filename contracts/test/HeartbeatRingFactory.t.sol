@@ -149,4 +149,16 @@ contract MinimalProxyHRFactoryTest is Test {
         vm.expectRevert(HeartbeatRing.InvalidLiquidationGracePeriod.selector);
         factory.createRing(STAKE, EPOCH, 29, MIN, MAX, BOUNTY_BPS);
     }
+
+    function test_createRing_emitsRingCreatedEvent() external {
+        vm.expectEmit(false, true, false, true);
+        emit MinimalProxyHRFactory.RingCreated(
+            address(0), // ring address unknown ahead of time
+            alice,
+            STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS
+        );
+
+        vm.prank(alice);
+        factory.createRing(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS);
+    }
 }
