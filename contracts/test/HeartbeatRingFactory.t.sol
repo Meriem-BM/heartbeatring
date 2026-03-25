@@ -163,7 +163,7 @@ contract MinimalProxyHRFactoryTest is Test {
     }
 
     function test_createRing_emitsRingCreatedEvent() external {
-        vm.expectEmit(false, true, false, true);
+        vm.expectEmit(false, true, false, true, address(factory));
         emit MinimalProxyHRFactory.RingCreated(
             address(0), // ring address unknown ahead of time
             alice,

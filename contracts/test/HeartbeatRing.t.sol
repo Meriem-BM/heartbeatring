@@ -627,8 +627,7 @@ contract HeartbeatRingTest is Test {
     }
 
     function test_refundRegistration_revertsWhenAliveButStakeIsZero() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness();
-        ring.forcePhase(HeartbeatRing.Phase.Registration);
+        HeartbeatRingHarness ring = _deployHarnessDefault();
         ring.forceParticipant(alice, 0, true);
 
         vm.warp(ring.registrationDeadline() + 1);
@@ -712,8 +711,19 @@ contract HeartbeatRingTest is Test {
         return HeartbeatRing(address(implementation).clone());
     }
 
+    function _deployUninitializedHarnessClone() internal returns (HeartbeatRingHarness) {
+        HeartbeatRingHarness implementation = new HeartbeatRingHarness();
+        return HeartbeatRingHarness(address(implementation).clone());
+    }
+
     function _deployDefault() internal returns (HeartbeatRing) {
         HeartbeatRing ring = _deployUninitializedClone();
+        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
+        return ring;
+    }
+
+    function _deployHarnessDefault() internal returns (HeartbeatRingHarness) {
+        HeartbeatRingHarness ring = _deployUninitializedHarnessClone();
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
         return ring;
     }
