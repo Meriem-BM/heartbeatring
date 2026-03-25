@@ -11,9 +11,9 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
  *         - Event-First: minimal on-chain state, rich event emission for off-chain indexing
  *
  * @dev N participants form a circular doubly-linked list (ring). Each deposits a fixed stake.
- *      Every epoch, each participant must call heartbeat(). Missing a heartbeat allows anyone
- *      to liquidate the delinquent. Their stake splits 50/50 to their immediate ring neighbors.
- *      The ring shrinks as members are liquidated. Last survivor(s) claim the pool.
+ *      Every epoch, each participant must call heartbeat(). Missing the grace-window deadline
+ *      allows anyone to liquidate the delinquent. Their stake splits 50/50 to their immediate
+ *      ring neighbors. The ring shrinks as members are liquidated and the last survivor claims.
  */
 contract HeartbeatRing is ReentrancyGuard {
     // ------------------------------------------------------------
@@ -123,6 +123,7 @@ contract HeartbeatRing is ReentrancyGuard {
     error AlreadyDead();
     error NotDelinquent();
     error GracePeriodActive();
+    error HeartbeatWindowClosed();
     error InvalidRecipient();
     error NothingToClaim();
     error NothingToWithdraw();
@@ -136,8 +137,7 @@ contract HeartbeatRing is ReentrancyGuard {
     // ------------------------------------------------------------
 
     modifier inPhase(Phase _phase) {
-        if (!initialized) revert NotInitialized();
-        if (phase != _phase) revert WrongPhase(_phase, phase);
+        _inPhase(_phase);
         _;
     }
 
@@ -224,7 +224,7 @@ contract HeartbeatRing is ReentrancyGuard {
         participants[msg.sender] =
             Participant({next: address(0), prev: address(0), stake: uint128(msg.value), lastBeat: 0, alive: true});
 
-        // Build a temporary singly-linked list during registration in O(1)
+        // Build a temporary linear doubly-linked list during registration in O(1).
         if (ringHead == address(0)) {
             ringHead = msg.sender;
             ringTail = msg.sender;
@@ -261,7 +261,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     /**
-     * @notice Emit a heartbeat for the current epoch. Must be called once per epoch to stay alive.
+     * @notice Emit a heartbeat for the current epoch before the liquidation grace window ends.
      */
     function heartbeat() external inPhase(Phase.Active) {
         Participant storage p = participants[msg.sender];
@@ -269,6 +269,11 @@ contract HeartbeatRing is ReentrancyGuard {
 
         uint256 epoch = currentEpoch();
         if (epoch > type(uint64).max) revert EpochOverflow();
+        if (epoch > 0 && uint256(p.lastBeat) < epoch && block.timestamp >= _liquidationTime(epoch)) {
+            revert HeartbeatWindowClosed();
+        }
+
+        // forge-lint: disable-next-line(unsafe-typecast)
         p.lastBeat = uint64(epoch);
 
         emit Heartbeat(msg.sender, epoch);
@@ -286,8 +291,7 @@ contract HeartbeatRing is ReentrancyGuard {
         uint256 epoch = currentEpoch();
         if (epoch == 0 || uint256(t.lastBeat) >= epoch) revert NotDelinquent();
 
-        uint256 epochStart = gameStartTime + (epoch * epochDuration);
-        if (block.timestamp < epochStart + liquidationGracePeriod) revert GracePeriodActive();
+        if (block.timestamp < _liquidationTime(epoch)) revert GracePeriodActive();
 
         address leftBeneficiary = t.prev;
         address rightBeneficiary = t.next;
@@ -336,14 +340,14 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     /**
-     * @notice Survivors claim their accumulated stake from the pool.
+     * @notice The final survivor claims their accumulated stake from the pool.
      */
     function claim() external nonReentrant {
         _claimTo(msg.sender, payable(msg.sender));
     }
 
     /**
-     * @notice Survivors claim their accumulated stake from the pool to a custom recipient.
+     * @notice The final survivor claims their accumulated stake to a custom recipient.
      * @dev Implemented so contract participants that cannot receive ETH directly can redirect payout
      *      to a payable recipient and avoid permanent fund lock.
      * @param recipient The payable address that will receive the claimed stake.
@@ -397,6 +401,7 @@ contract HeartbeatRing is ReentrancyGuard {
 
         uint256 updated = uint256(participants[who].stake) + amount;
         if (updated > type(uint128).max) revert StakeOverflow();
+        // forge-lint: disable-next-line(unsafe-typecast)
         participants[who].stake = uint128(updated);
     }
 
@@ -450,7 +455,7 @@ contract HeartbeatRing is ReentrancyGuard {
 
         address prevNode = p.prev;
         address nextNode = p.next;
-        _unlinkRegistrationParticipant(participant, prevNode, nextNode);
+        _unlinkRegistrationParticipant(prevNode, nextNode);
 
         p.stake = 0;
         p.alive = false;
@@ -461,7 +466,7 @@ contract HeartbeatRing is ReentrancyGuard {
         _sendValue(recipient, amount);
     }
 
-    function _unlinkRegistrationParticipant(address participant, address prevNode, address nextNode) internal {
+    function _unlinkRegistrationParticipant(address prevNode, address nextNode) internal {
         if (prevNode == address(0)) {
             ringHead = nextNode;
         } else {
@@ -473,9 +478,6 @@ contract HeartbeatRing is ReentrancyGuard {
         } else {
             participants[nextNode].prev = prevNode;
         }
-
-        if (ringHead == participant) ringHead = nextNode;
-        if (ringTail == participant) ringTail = prevNode;
 
         if (totalParticipants > 0) {
             unchecked {
@@ -513,8 +515,7 @@ contract HeartbeatRing is ReentrancyGuard {
         Participant storage p = participants[who];
         if (!p.alive || uint256(p.lastBeat) >= epoch) return false;
 
-        uint256 epochStart = gameStartTime + (epoch * epochDuration);
-        return block.timestamp >= epochStart + liquidationGracePeriod;
+        return block.timestamp >= _liquidationTime(epoch);
     }
 
     /**
@@ -552,6 +553,15 @@ contract HeartbeatRing is ReentrancyGuard {
         if (phase != Phase.Active) return 0;
         uint256 elapsed = (block.timestamp - gameStartTime) % epochDuration;
         return epochDuration - elapsed;
+    }
+
+    function _inPhase(Phase _phase) internal view {
+        if (!initialized) revert NotInitialized();
+        if (phase != _phase) revert WrongPhase(_phase, phase);
+    }
+
+    function _liquidationTime(uint256 epoch) internal view returns (uint256) {
+        return gameStartTime + (epoch * epochDuration) + liquidationGracePeriod;
     }
 
     /**

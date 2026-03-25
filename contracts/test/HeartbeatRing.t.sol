@@ -97,6 +97,14 @@ contract HeartbeatRingTest is Test {
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
     }
 
+    function test_phaseGuard_revertsWhenNotInitialized() external {
+        HeartbeatRing ring = new HeartbeatRing();
+
+        vm.prank(alice);
+        vm.expectRevert(HeartbeatRing.NotInitialized.selector);
+        ring.register{value: STAKE}();
+    }
+
     function test_initialize_revertsWhenUnauthorizedCaller() external {
         HeartbeatRing ring = new HeartbeatRing();
 
@@ -241,7 +249,7 @@ contract HeartbeatRingTest is Test {
         _register3(ring);
         ring.startGame();
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod() - 1);
 
         vm.expectEmit(true, true, false, true);
         emit HeartbeatRing.Heartbeat(alice, 1);
@@ -275,10 +283,10 @@ contract HeartbeatRingTest is Test {
         vm.expectRevert(HeartbeatRing.GracePeriodActive.selector);
         ring.liquidate(alice);
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(alice);
         ring.heartbeat();
 
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
         vm.expectRevert(HeartbeatRing.NotDelinquent.selector);
         ring.liquidate(alice);
@@ -289,6 +297,24 @@ contract HeartbeatRingTest is Test {
         vm.prank(liquidator);
         vm.expectRevert(HeartbeatRing.AlreadyDead.selector);
         ring.liquidate(bob);
+    }
+
+    function test_heartbeat_revertsWhenGraceWindowHasElapsed() external {
+        HeartbeatRing ring = _deployDefault();
+        _register3(ring);
+        ring.startGame();
+
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
+        assertTrue(ring.isDelinquent(alice));
+
+        vm.prank(alice);
+        vm.expectRevert(HeartbeatRing.HeartbeatWindowClosed.selector);
+        ring.heartbeat();
+
+        vm.prank(liquidator);
+        ring.liquidate(alice);
+
+        assertFalse(ring.isDelinquent(alice));
     }
 
     function test_liquidate_distributesBountyRelinksAndCompletes() external {
@@ -607,26 +633,6 @@ contract HeartbeatRingTest is Test {
         ring.refundRegistrationFor(alice);
     }
 
-    function test_refundRegistration_hitsFallbackHeadTailUnlinkChecks() external {
-        HeartbeatRingHarness ring = new HeartbeatRingHarness();
-        ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, address(this));
-        address fakePrev = makeAddr("fakePrev");
-        address fakeNext = makeAddr("fakeNext");
-
-        // Intentionally inconsistent registration pointers to exercise fallback checks:
-        // participant is ringHead/ringTail while still having non-zero prev/next.
-        ring.forceParticipant(alice, uint128(STAKE), true);
-        ring.forceParticipantLinks(alice, fakeNext, fakePrev);
-        ring.forceRingMeta(0, 1, alice, alice);
-        vm.deal(address(ring), STAKE);
-        vm.warp(ring.registrationDeadline() + 1);
-
-        ring.refundRegistrationFor(alice);
-
-        assertEq(ring.ringHead(), fakeNext);
-        assertEq(ring.ringTail(), fakePrev);
-    }
-
     // ------------------------------------------------------------
     // --------------- View functions / edge branches -------------
     // ------------------------------------------------------------
@@ -654,12 +660,16 @@ contract HeartbeatRingTest is Test {
         vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod() - 1);
         assertFalse(ring.isDelinquent(bob));
 
-        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
-        assertTrue(ring.isDelinquent(bob));
-
         vm.prank(bob);
         ring.heartbeat();
+
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
+        assertTrue(ring.isDelinquent(alice));
         assertFalse(ring.isDelinquent(bob));
+
+        vm.prank(alice);
+        vm.expectRevert(HeartbeatRing.HeartbeatWindowClosed.selector);
+        ring.heartbeat();
 
         vm.warp(ring.gameStartTime() + EPOCH + (EPOCH / 2));
         assertEq(ring.currentEpoch(), 1);

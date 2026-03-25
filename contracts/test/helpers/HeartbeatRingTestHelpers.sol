@@ -26,17 +26,6 @@ contract HeartbeatRingHarness is HeartbeatRing {
     }
 
     /**
-     * @dev Forces a participant's next and prev links.
-     * @param who The address of the participant to force.
-     * @param next The next link to force.
-     * @param prev The prev link to force.
-     */
-    function forceParticipantLinks(address who, address next, address prev) external {
-        participants[who].next = next;
-        participants[who].prev = prev;
-    }
-
-    /**
      * @dev Forces the phase of the ring.
      * @param _phase The phase to force.
      */
