@@ -26,6 +26,10 @@ contract MinimalProxyHRFactoryTest is Test {
         factory = new MinimalProxyHRFactory();
     }
 
+    // ------------------------------------------------------------
+    //                   Create Ring Tests
+    // ------------------------------------------------------------
+
     function test_createRing_setsCallerAsCreator() external {
         address implementation = factory.implementation();
         assertTrue(implementation != address(0));
@@ -49,6 +53,10 @@ contract MinimalProxyHRFactoryTest is Test {
         vm.expectRevert(HeartbeatRing.AlreadyInitialized.selector);
         ring.initialize(STAKE, EPOCH, GRACE, MIN, MAX, BOUNTY_BPS, alice);
     }
+
+    // ------------------------------------------------------------
+    //                   Implementation Tests
+    // ------------------------------------------------------------
 
     function test_implementation_rejectsExternalInitialization() external {
         HeartbeatRing impl = HeartbeatRing(factory.implementation());

@@ -32,7 +32,7 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // -------------------- Initialization Tests ------------------
+    //                   Initialization Tests
     // ------------------------------------------------------------
 
     function test_initialize_setsDefaults() external {
@@ -117,7 +117,7 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // ------------------- Registration / Start -------------------
+    //                   Registration / Start
     // ------------------------------------------------------------
 
     function test_register_linksParticipantsAndEmitsPosition() external {
@@ -215,7 +215,7 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // ------------------- Heartbeat / Liquidation ----------------
+    //                   Heartbeat / Liquidation
     // ------------------------------------------------------------
 
     function test_heartbeat_revertsOnWrongPhaseDeadAndOverflow() external {
@@ -703,7 +703,7 @@ contract HeartbeatRingTest is Test {
     }
 
     // ------------------------------------------------------------
-    // --------------------- Helper Functions ---------------------
+    //                   Helper Functions
     // ------------------------------------------------------------
 
     function _deployUninitializedClone() internal returns (HeartbeatRing) {
