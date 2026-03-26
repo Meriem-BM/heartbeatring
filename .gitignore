@@ -1,1 +1,3 @@
 .vscode
+liquidator/node_modules
+liquidator/.env

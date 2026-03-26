@@ -1,0 +1,16 @@
+{
+  "name": "heartbeat-liquidator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "liquidator": "bun src/cli.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "viem": "^2.47.6"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.11"
+  }
+}
