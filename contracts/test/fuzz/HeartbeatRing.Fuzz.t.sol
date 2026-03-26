@@ -84,7 +84,7 @@ contract HeartbeatRingFuzzTest is Test {
         external
     {
         HeartbeatRing ring = _deployRingWithConfig(STAKE, EPOCH, GRACE, MIN, actors.length, BOUNTY_BPS);
-        _registerFirstN(ring, 3);
+        _registerFirstN(ring, MIN);
         ring.startGame();
 
         uint256 epoch = bound(uint256(epochSeed), 1, 1000);
@@ -99,34 +99,125 @@ contract HeartbeatRingFuzzTest is Test {
         assertEq(uint256(lastBeat), epoch);
     }
 
-    function testFuzz_liquidate_distributesStakeAndBounty(uint16 bountySeed) external {
+    function testFuzz_liquidate_distributesStakeAndBounty(uint16 bountySeed, uint8 targetIndexSeed) external {
         uint256 bountyBps = bound(uint256(bountySeed), 0, 500);
         HeartbeatRing ring = _deployRingWithConfig(STAKE, EPOCH, GRACE, MIN, 3, bountyBps);
         _registerFirstN(ring, 3);
         ring.startGame();
 
+        uint256 targetIndex = bound(uint256(targetIndexSeed), 0, 2);
+        address target = actors[targetIndex];
+        address leftBeneficiary = actors[targetIndex == 0 ? 2 : targetIndex - 1];
+        address rightBeneficiary = actors[(targetIndex + 1) % 3];
+
         vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
         vm.prank(liquidator);
-        ring.liquidate(actors[1]);
+        ring.liquidate(target);
 
         uint256 expectedBounty = (STAKE * bountyBps) / 10_000;
-        uint256 distributable = STAKE - expectedBounty;
-        uint256 leftShare = distributable / 2;
-        uint256 rightShare = distributable - leftShare;
+        uint256 leftShare = (STAKE - expectedBounty) / 2;
+        uint256 rightShare = (STAKE - expectedBounty) - leftShare;
 
         assertEq(ring.pendingBounties(liquidator), expectedBounty);
         assertEq(ring.ringSize(), 2);
+        assertEq(ring.ringHead(), targetIndex == 0 ? rightBeneficiary : actors[0]);
+        assertEq(ring.ringTail(), targetIndex == 2 ? leftBeneficiary : actors[2]);
 
-        (,, uint128 leftStake,, bool leftAlive) = ring.participants(actors[0]);
-        (,, uint128 targetStake,, bool targetAlive) = ring.participants(actors[1]);
-        (,, uint128 rightStake,, bool rightAlive) = ring.participants(actors[2]);
+        {
+            (address leftNext,, uint128 leftStake,, bool leftAlive) = ring.participants(leftBeneficiary);
+            assertTrue(leftAlive);
+            assertEq(leftNext, rightBeneficiary);
+            assertEq(uint256(leftStake), STAKE + leftShare);
+        }
 
-        assertTrue(leftAlive);
-        assertFalse(targetAlive);
-        assertTrue(rightAlive);
-        assertEq(uint256(targetStake), 0);
-        assertEq(uint256(leftStake), STAKE + leftShare);
-        assertEq(uint256(rightStake), STAKE + rightShare);
+        {
+            (, address rightPrev, uint128 rightStake,, bool rightAlive) = ring.participants(rightBeneficiary);
+            assertTrue(rightAlive);
+            assertEq(rightPrev, leftBeneficiary);
+            assertEq(uint256(rightStake), STAKE + rightShare);
+        }
+
+        {
+            (,, uint128 targetStake,, bool targetAlive) = ring.participants(target);
+            assertFalse(targetAlive);
+            assertEq(uint256(targetStake), 0);
+        }
+    }
+
+    function testFuzz_liquidate_toCompletedAndClaim(
+        uint16 bountySeed,
+        uint8 firstTargetIndexSeed,
+        uint8 secondTargetIndexSeed
+    ) external {
+        uint256 bountyBps = bound(uint256(bountySeed), 0, 500);
+        HeartbeatRing ring = _deployRingWithConfig(STAKE, EPOCH, GRACE, MIN, 3, bountyBps);
+        _registerFirstN(ring, 3);
+        ring.startGame();
+
+        uint256 firstTargetIndex = bound(uint256(firstTargetIndexSeed), 0, 2);
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
+        vm.prank(liquidator);
+        ring.liquidate(actors[firstTargetIndex]);
+
+        assertEq(ring.ringSize(), 2);
+        assertEq(uint256(ring.phase()), uint256(HeartbeatRing.Phase.Active));
+
+        address[] memory survivors = ring.getRing();
+        uint256 secondTargetIndex = bound(uint256(secondTargetIndexSeed), 0, survivors.length - 1);
+        address secondTarget = survivors[secondTargetIndex];
+
+        vm.warp(ring.gameStartTime() + (2 * EPOCH) + ring.liquidationGracePeriod());
+        vm.prank(liquidator);
+        ring.liquidate(secondTarget);
+
+        assertEq(ring.ringSize(), 1);
+        assertEq(uint256(ring.phase()), uint256(HeartbeatRing.Phase.Completed));
+
+        address survivor = ring.ringHead();
+        assertEq(survivor, ring.ringTail());
+
+        (,, uint128 claimable,, bool survivorAlive) = ring.participants(survivor);
+        assertTrue(survivorAlive);
+        assertGt(uint256(claimable), 0);
+
+        uint256 survivorBalanceBefore = survivor.balance;
+        uint256 ringBalanceBefore = address(ring).balance;
+
+        vm.prank(survivor);
+        ring.claim();
+
+        assertEq(survivor.balance - survivorBalanceBefore, uint256(claimable));
+        assertEq(ringBalanceBefore - address(ring).balance, uint256(claimable));
+        assertEq(ring.ringSize(), 0);
+        assertEq(ring.ringHead(), address(0));
+        assertEq(ring.ringTail(), address(0));
+
+        (,, uint128 stakeAfterClaim,, bool aliveAfterClaim) = ring.participants(survivor);
+        assertEq(uint256(stakeAfterClaim), 0);
+        assertFalse(aliveAfterClaim);
+    }
+
+    function testFuzz_withdrawBounty_transfersBalanceAndResetsState(uint16 bountySeed, uint8 targetIndexSeed) external {
+        uint256 bountyBps = bound(uint256(bountySeed), 1, 500);
+        HeartbeatRing ring = _deployRingWithConfig(STAKE, EPOCH, GRACE, MIN, 3, bountyBps);
+        _registerFirstN(ring, 3);
+        ring.startGame();
+
+        uint256 targetIndex = bound(uint256(targetIndexSeed), 0, 2);
+        vm.warp(ring.gameStartTime() + EPOCH + ring.liquidationGracePeriod());
+        vm.prank(liquidator);
+        ring.liquidate(actors[targetIndex]);
+
+        uint256 pending = ring.pendingBounties(liquidator);
+        uint256 liquidatorBalanceBefore = liquidator.balance;
+        uint256 ringBalanceBefore = address(ring).balance;
+
+        vm.prank(liquidator);
+        ring.withdrawBounty();
+
+        assertEq(liquidator.balance - liquidatorBalanceBefore, pending);
+        assertEq(ringBalanceBefore - address(ring).balance, pending);
+        assertEq(ring.pendingBounties(liquidator), 0);
     }
 
     function testFuzz_refundRegistrationFor_reducesParticipants(uint8 participantCountSeed, uint8 refundIndexSeed)
