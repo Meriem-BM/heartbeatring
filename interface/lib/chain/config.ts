@@ -102,14 +102,6 @@ const heartbeatNetworkMap = {
   },
 } as const satisfies Record<HeartbeatNetworkKey, HeartbeatNetworkDefinition>;
 
-export const HEARTBEAT_NETWORK_OPTIONS = [
-  { key: "testnet", label: "Testnet" },
-  { key: "mainnet", label: "Mainnet" },
-] as const satisfies readonly {
-  key: HeartbeatNetworkKey;
-  label: string;
-}[];
-
 export function resolveHeartbeatNetworkKey(
   value: string | string[] | null | undefined,
 ): HeartbeatNetworkKey {
@@ -120,6 +112,20 @@ export function resolveHeartbeatNetworkKey(
   }
 
   return DEFAULT_HEARTBEAT_NETWORK_KEY;
+}
+
+export function resolveHeartbeatNetworkKeyFromChainId(
+  chainId: number | null | undefined,
+): HeartbeatNetworkKey | null {
+  if (chainId === rootstockMainnet.id) {
+    return "mainnet";
+  }
+
+  if (chainId === rootstockTestnet.id) {
+    return "testnet";
+  }
+
+  return null;
 }
 
 export function getHeartbeatNetwork(

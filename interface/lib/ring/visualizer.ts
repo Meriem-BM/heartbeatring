@@ -7,11 +7,6 @@ export type RingNode = {
   delinquent: boolean;
 };
 
-export type PositionedRingNode = RingNode & {
-  x: number;
-  y: number;
-};
-
 export const RING_VISUALIZER_SIZE = 420;
 
 export function getRingNodeRadius(nodeCount: number) {

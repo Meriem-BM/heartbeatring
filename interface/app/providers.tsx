@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { WagmiProvider, createConfig, http, injected } from "wagmi";
 
 import { WalletProvider } from "@/context/wallet-context";
@@ -43,7 +43,9 @@ export function Providers({ children }: { children: ReactNode }) {
             overlayBlur: "small",
           })}
         >
-          <WalletProvider>{children}</WalletProvider>
+          <Suspense fallback={null}>
+            <WalletProvider>{children}</WalletProvider>
+          </Suspense>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

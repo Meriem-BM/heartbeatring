@@ -17,7 +17,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
  */
 contract HeartbeatRing is ReentrancyGuard {
     // ------------------------------------------------------------
-    // ------------------------- Types ----------------------------
+    //                           Types
     // ------------------------------------------------------------
 
     enum Phase {
@@ -35,7 +35,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     // ------------------------------------------------------------
-    // ------------------------- State ----------------------------
+    //                           State
     // ------------------------------------------------------------
 
     uint256 public constant MAX_PARTICIPANTS_LIMIT = 1000;
@@ -66,7 +66,7 @@ contract HeartbeatRing is ReentrancyGuard {
     mapping(address => uint256) public pendingBounties;
 
     // ------------------------------------------------------------
-    // ---------------------- Events ------------------------------
+    //                       Events
     // ------------------------------------------------------------
 
     event Registered(address indexed participant, uint256 position);
@@ -99,7 +99,7 @@ contract HeartbeatRing is ReentrancyGuard {
     );
 
     // ------------------------------------------------------------
-    // ---------------------- Errors ------------------------------
+    //                       Errors
     // ------------------------------------------------------------
 
     error WrongPhase(Phase expected, Phase actual);
@@ -133,7 +133,7 @@ contract HeartbeatRing is ReentrancyGuard {
     error RingInvariantBroken();
 
     // ------------------------------------------------------------
-    // ---------------------- Modifiers ---------------------------
+    //                       Modifiers
     // ------------------------------------------------------------
 
     modifier inPhase(Phase _phase) {
@@ -142,7 +142,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     // ------------------------------------------------------------
-    // ---------------------- Constructor -------------------------
+    //                       Constructor
     // ------------------------------------------------------------
 
     /**
@@ -170,7 +170,7 @@ contract HeartbeatRing is ReentrancyGuard {
 
 
     // ------------------------------------------------------------
-    // -------------------- Initialization ------------------------
+    //                   Initialization
     // ------------------------------------------------------------
     /**
      * @notice Initializes ring parameters. Callable once per deployed instance/clone.
@@ -228,7 +228,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     // ------------------------------------------------------------
-    // ------------------- External Functions ---------------------
+    //                   External Functions
     // ------------------------------------------------------------
 
     /**
@@ -415,7 +415,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     // ------------------------------------------------------------
-    // -------------------- Internal Functions --------------------
+    //                   Internal Functions
     // ------------------------------------------------------------
 
     function _addStake(address who, uint256 amount) internal {
@@ -514,7 +514,7 @@ contract HeartbeatRing is ReentrancyGuard {
     }
 
     // ------------------------------------------------------------
-    // -------------------- View / Pure Functions -----------------
+    //                   View / Pure Functions
     // ------------------------------------------------------------
 
     /**

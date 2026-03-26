@@ -74,9 +74,3 @@ export function getErrorMessage(error: unknown, fallback = "Transaction failed."
   return fallback;
 }
 
-export function getQueryErrorMessage(
-  error: unknown,
-  fallback = "Failed to load contract data.",
-) {
-  return getErrorMessage(error, fallback);
-}

@@ -3,60 +3,35 @@
 import { getAddress } from "viem";
 import { useReadContracts } from "wagmi";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useWalletContext } from "@/context/wallet-context";
+import { useCountdown } from "@/hooks/common/useCountdown";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import { GAME_STATUS_PHASE_META } from "@/lib/ring/ui";
 import type { RingAddressProps } from "@/lib/types/ring";
-import { useCountdown } from "@/hooks/useCountdown";
 import { CONTRACT_POLL_INTERVAL_MS } from "@/lib/utils/query";
 import { pickResult } from "@/lib/utils/read-results";
 
 export function useRingStatus({ ringAddress }: RingAddressProps) {
   const normalizedAddress = getAddress(ringAddress);
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
+
+  const contractBase = {
+    address: normalizedAddress,
+    abi: heartbeatRingABI,
+    chainId: selectedNetwork.chain.id,
+  } as const;
+
   const { data, refetch } = useReadContracts({
     allowFailure: true,
     contracts: [
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "phase",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "currentEpoch",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "ringSize",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "totalParticipants",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "stakeAmount",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "timeUntilEpochEnd",
-      },
+      { ...contractBase, functionName: "phase" },
+      { ...contractBase, functionName: "currentEpoch" },
+      { ...contractBase, functionName: "ringSize" },
+      { ...contractBase, functionName: "totalParticipants" },
+      { ...contractBase, functionName: "stakeAmount" },
+      { ...contractBase, functionName: "timeUntilEpochEnd" },
     ],
-    query: {
-      refetchInterval: CONTRACT_POLL_INTERVAL_MS,
-    },
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
 
   const phase =

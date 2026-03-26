@@ -3,7 +3,7 @@
 import { getAddress } from "viem";
 import { useAccount } from "wagmi";
 
-import { useRingVisualizerData } from "@/hooks/useRingVisualizerData";
+import { useRingVisualizerData } from "@/hooks/ring/useRingVisualizerData";
 import { formatTokenValue, truncateAddress } from "@/lib/utils/format";
 import {
   buildConnectionPairs,

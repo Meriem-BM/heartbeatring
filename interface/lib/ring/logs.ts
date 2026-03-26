@@ -6,6 +6,11 @@ import { formatToken, truncateAddress } from "@/lib/utils/format";
 import { EVENT_LOG_LIMIT } from "@/lib/ring/ui";
 import type { EventEntry, RawLog } from "@/lib/types/ring";
 
+function resolveAddress(args: Record<string, unknown>, field: string) {
+  if (typeof args[field] !== "string") return null;
+  return truncateAddress(getAddress(args[field]));
+}
+
 function sortEntries(entries: readonly EventEntry[]) {
   return [...entries].sort((left, right) => {
     if (left.blockNumber !== right.blockNumber) {
@@ -35,18 +40,11 @@ export function buildEventEntries(logs: readonly RawLog[], tokenSymbol: string) 
         };
 
         switch (decoded.eventName) {
-          case "Registered":
-            if (typeof args.participant !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-                message: `${truncateAddress(
-                  getAddress(args.participant),
-                )} joined the ring.`,
-              },
-            ];
+          case "Registered": {
+            const addr = resolveAddress(args, "participant");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200", message: `${addr} joined the ring.` }];
+          }
           case "RingFormed":
             return [
               {
@@ -56,29 +54,16 @@ export function buildEventEntries(logs: readonly RawLog[], tokenSymbol: string) 
                 message: `Ring formed with ${(args.participants as bigint).toString()} participants.`,
               },
             ];
-          case "Heartbeat":
-            if (typeof args.participant !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-                message: `${truncateAddress(
-                  getAddress(args.participant),
-                )} sent heartbeat for epoch ${(args.epoch as bigint).toString()}.`,
-              },
-            ];
-          case "Liquidated":
-            if (typeof args.target !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass: "border-red-500/30 bg-red-500/10 text-red-200",
-                message: `${truncateAddress(
-                  getAddress(args.target),
-                )} was liquidated in epoch ${(args.epoch as bigint).toString()}.`,
-              },
-            ];
+          case "Heartbeat": {
+            const addr = resolveAddress(args, "participant");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200", message: `${addr} sent heartbeat for epoch ${(args.epoch as bigint).toString()}.` }];
+          }
+          case "Liquidated": {
+            const addr = resolveAddress(args, "target");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-red-500/30 bg-red-500/10 text-red-200", message: `${addr} was liquidated in epoch ${(args.epoch as bigint).toString()}.` }];
+          }
           case "RingRelinked":
             return [
               {
@@ -97,65 +82,31 @@ export function buildEventEntries(logs: readonly RawLog[], tokenSymbol: string) 
                 message: `Game over. Pool ${formatToken(args.totalPool as bigint, tokenSymbol)}.`,
               },
             ];
-          case "Claimed":
-            if (typeof args.survivor !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-                message: `${truncateAddress(
-                  getAddress(args.survivor),
-                )} claimed ${formatToken(args.amount as bigint, tokenSymbol)}.`,
-              },
-            ];
-          case "BountyAccrued":
-            if (typeof args.liquidator !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-yellow-500/30 bg-yellow-500/10 text-yellow-100",
-                message: `${truncateAddress(
-                  getAddress(args.liquidator),
-                )} earned ${formatToken(args.amount as bigint, tokenSymbol)} bounty.`,
-              },
-            ];
-          case "BountyWithdrawn":
-            if (typeof args.liquidator !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-                message: `${truncateAddress(
-                  getAddress(args.liquidator),
-                )} withdrew ${formatToken(args.amount as bigint, tokenSymbol)} bounty.`,
-              },
-            ];
-          case "RegistrationRefunded":
-            if (typeof args.participant !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass: "border-red-500/30 bg-red-500/10 text-red-200",
-                message: `${truncateAddress(
-                  getAddress(args.participant),
-                )} received a registration refund.`,
-              },
-            ];
-          case "Initialized":
-            if (typeof args.creator !== "string") return [];
-            return [
-              {
-                ...base,
-                colorClass:
-                  "border-yellow-500/30 bg-yellow-500/10 text-yellow-100",
-                message: `Ring initialized by ${truncateAddress(
-                  getAddress(args.creator),
-                )}.`,
-              },
-            ];
+          case "Claimed": {
+            const addr = resolveAddress(args, "survivor");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200", message: `${addr} claimed ${formatToken(args.amount as bigint, tokenSymbol)}.` }];
+          }
+          case "BountyAccrued": {
+            const addr = resolveAddress(args, "liquidator");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-yellow-500/30 bg-yellow-500/10 text-yellow-100", message: `${addr} earned ${formatToken(args.amount as bigint, tokenSymbol)} bounty.` }];
+          }
+          case "BountyWithdrawn": {
+            const addr = resolveAddress(args, "liquidator");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200", message: `${addr} withdrew ${formatToken(args.amount as bigint, tokenSymbol)} bounty.` }];
+          }
+          case "RegistrationRefunded": {
+            const addr = resolveAddress(args, "participant");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-red-500/30 bg-red-500/10 text-red-200", message: `${addr} received a registration refund.` }];
+          }
+          case "Initialized": {
+            const addr = resolveAddress(args, "creator");
+            if (!addr) return [];
+            return [{ ...base, colorClass: "border-yellow-500/30 bg-yellow-500/10 text-yellow-100", message: `Ring initialized by ${addr}.` }];
+          }
           default:
             return [];
         }

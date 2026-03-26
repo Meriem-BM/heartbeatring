@@ -38,20 +38,17 @@ export const GAME_STATUS_PHASE_META = {
 export const RING_CARD_PHASE_META = {
   0: {
     label: "Registration",
-    borderClass: "border-l-emerald-500",
     badgeClass:
       "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
     hint: "Join now",
   },
   1: {
     label: "Active",
-    borderClass: "border-l-amber-500",
     badgeClass: "border border-amber-500/30 bg-amber-500/10 text-amber-300",
     hint: "Epoch live",
   },
   2: {
     label: "Completed",
-    borderClass: "border-l-gray-600",
     badgeClass: "border border-gray-700 bg-gray-800 text-gray-300",
     hint: "Game over",
   },
@@ -59,7 +56,6 @@ export const RING_CARD_PHASE_META = {
   RingPhase,
   {
     label: string;
-    borderClass: string;
     badgeClass: string;
     hint: string;
   }

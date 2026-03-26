@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 
+import { Notice } from "@/components/ui/notice";
 import { useWalletContext } from "@/context/wallet-context";
-import { useRingBrowser } from "@/hooks/useRingBrowser";
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useRingBrowser } from "@/hooks/ring/useRingBrowser";
 
 import { CreateRingModal } from "./create-ring-modal";
 import { RingCard } from "./ring-card";
 
 export function RingBrowser() {
-  const selectedNetwork = useSelectedNetwork();
-  const { isConnected } = useWalletContext();
+  const { isConnected, selectedNetwork } = useWalletContext();
   const [createOpen, setCreateOpen] = useState(false);
   const { errorMessage, isLoading, ringAddresses, sortedRingAddresses } =
     useRingBrowser();
@@ -50,17 +49,14 @@ export function RingBrowser() {
         </section>
 
         {!selectedNetwork.hasFactory && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
-            <p className="font-medium">Factory address missing.</p>
-            <p className="mt-2">
-              Set{" "}
-              <code className="font-mono">
-                {selectedNetwork.factoryEnvLabel}
-              </code>{" "}
-              to browse or create HeartbeatRing instances on{" "}
-              {selectedNetwork.label.toLowerCase()}.
-            </p>
-          </div>
+          <Notice tone="error" title="Factory address missing." className="p-5">
+            Set{" "}
+            <code className="font-mono">
+              {selectedNetwork.factoryEnvLabel}
+            </code>{" "}
+            to browse or create HeartbeatRing instances on{" "}
+            {selectedNetwork.label.toLowerCase()}.
+          </Notice>
         )}
 
         {selectedNetwork.hasFactory && (
@@ -87,9 +83,9 @@ export function RingBrowser() {
             )}
 
             {!isLoading && errorMessage && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
+              <Notice tone="error" className="p-5">
                 Failed to load rings: {errorMessage}
-              </div>
+              </Notice>
             )}
 
             {!isLoading && !errorMessage && sortedRingAddresses.length === 0 && (

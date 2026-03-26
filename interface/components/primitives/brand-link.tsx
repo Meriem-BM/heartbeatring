@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useWalletContext } from "@/context/wallet-context";
 
 export function BrandLink() {
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
 
   return (
     <Link

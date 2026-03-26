@@ -6,8 +6,8 @@ import {
   CompletedSection,
   PendingBountySection,
   RegistrationSection,
-} from "./action-panel-sections";
-import { useRingActions } from "@/hooks/useRingActions";
+} from "./primitives";
+import { useRingActions } from "@/hooks/ring/useRingActions";
 import type { RingAddressProps } from "@/lib/types/ring";
 
 export function ActionPanel({ ringAddress }: RingAddressProps) {

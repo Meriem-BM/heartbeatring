@@ -1,12 +1,12 @@
 "use client";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
-import { useRingStatus } from "@/hooks/useRingStatus";
+import { useWalletContext } from "@/context/wallet-context";
+import { useRingStatus } from "@/hooks/ring/useRingStatus";
 import { formatCountdown, formatToken } from "@/lib/utils/format";
 import type { RingAddressProps } from "@/lib/types/ring";
 
 export function GameStatus({ ringAddress }: RingAddressProps) {
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
   const {
     currentEpoch,
     displayCountdown,
