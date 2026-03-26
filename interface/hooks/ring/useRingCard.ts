@@ -23,61 +23,26 @@ type RingCardMetricItem = {
 export function useRingCard({ address }: UseRingCardProps) {
   const { selectedNetwork } = useWalletContext();
   const ringAddress = getAddress(address);
+
+  const contractBase = {
+    address: ringAddress,
+    abi: heartbeatRingABI,
+    chainId: selectedNetwork.chain.id,
+  } as const;
+
   const { data, isPending } = useReadContracts({
     allowFailure: true,
     contracts: [
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "phase",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "stakeAmount",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "epochDuration",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "totalParticipants",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "ringSize",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "minParticipants",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "maxParticipants",
-      },
-      {
-        address: ringAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "currentEpoch",
-      },
+      { ...contractBase, functionName: "phase" },
+      { ...contractBase, functionName: "stakeAmount" },
+      { ...contractBase, functionName: "epochDuration" },
+      { ...contractBase, functionName: "totalParticipants" },
+      { ...contractBase, functionName: "ringSize" },
+      { ...contractBase, functionName: "minParticipants" },
+      { ...contractBase, functionName: "maxParticipants" },
+      { ...contractBase, functionName: "currentEpoch" },
     ],
-    query: {
-      refetchInterval: CONTRACT_POLL_INTERVAL_MS,
-    },
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
 
   const phase = Number(pickResult(data, 0, 0)) as keyof typeof RING_CARD_PHASE_META;

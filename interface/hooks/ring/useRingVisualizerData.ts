@@ -10,6 +10,7 @@ import { useRegisteredRingAddresses } from "@/hooks/ring/useRegisteredRingAddres
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import type { RingNode } from "@/lib/ring/visualizer";
 import type { ParticipantData, RingAddressProps } from "@/lib/types/ring";
+import { mergeUniqueAddresses } from "@/lib/utils/address";
 import { CONTRACT_POLL_INTERVAL_MS } from "@/lib/utils/query";
 import { pickResult } from "@/lib/utils/read-results";
 
@@ -18,61 +19,33 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
   const { selectedNetwork } = useWalletContext();
   const registeredAddresses = useRegisteredRingAddresses({ ringAddress });
 
-  const { data: phaseData } = useReadContract({
+  const contractBase = {
     address: normalizedAddress,
     abi: heartbeatRingABI,
     chainId: selectedNetwork.chain.id,
+  } as const;
+
+  const { data: phaseData } = useReadContract({
+    ...contractBase,
     functionName: "phase",
-    query: {
-      refetchInterval: CONTRACT_POLL_INTERVAL_MS,
-    },
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
 
   const { data: aliveRing } = useReadContract({
-    address: normalizedAddress,
-    abi: heartbeatRingABI,
-    chainId: selectedNetwork.chain.id,
+    ...contractBase,
     functionName: "getRing",
-    query: {
-      refetchInterval: CONTRACT_POLL_INTERVAL_MS,
-    },
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
 
-  const orderedAddresses = useMemo(
-    () => {
-      const aliveAddresses = ((aliveRing ?? []) as Address[]).map((address) =>
-        getAddress(address),
-      );
-
-      if (registeredAddresses.length === 0) {
-        return aliveAddresses;
-      }
-
-      const seen = new Set(
-        registeredAddresses.map((address) => address.toLowerCase()),
-      );
-      const merged = [...registeredAddresses];
-
-      for (const address of aliveAddresses) {
-        const key = address.toLowerCase();
-
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(address);
-        }
-      }
-
-      return merged;
-    },
-    [aliveRing, registeredAddresses],
-  );
+  const orderedAddresses = useMemo(() => {
+    const aliveAddresses = ((aliveRing ?? []) as Address[]).map((a) => getAddress(a));
+    return mergeUniqueAddresses(registeredAddresses, aliveAddresses);
+  }, [aliveRing, registeredAddresses]);
 
   const { data: participantReads } = useReadContracts({
     allowFailure: true,
     contracts: orderedAddresses.map((address) => ({
-      address: normalizedAddress,
-      abi: heartbeatRingABI,
-      chainId: selectedNetwork.chain.id,
+      ...contractBase,
       functionName: "participants" as const,
       args: [address],
     })),
@@ -85,9 +58,7 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
   const { data: delinquentReads } = useReadContracts({
     allowFailure: true,
     contracts: orderedAddresses.map((address) => ({
-      address: normalizedAddress,
-      abi: heartbeatRingABI,
-      chainId: selectedNetwork.chain.id,
+      ...contractBase,
       functionName: "isDelinquent" as const,
       args: [address],
     })),

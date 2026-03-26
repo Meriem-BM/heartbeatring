@@ -10,6 +10,7 @@ import { createLogsPublicClientForNetwork } from "@/lib/chain/config";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import { getRegisteredAddressesFromLogs } from "@/lib/ring/logs";
 import type { ParticipantData, RingAddressProps } from "@/lib/types/ring";
+import { mergeUniqueAddresses } from "@/lib/utils/address";
 import { getErrorMessage, LOGS_UNAVAILABLE_MESSAGE } from "@/lib/utils/errors";
 import { CONTRACT_POLL_INTERVAL_MS, LOGS_FROM_BLOCK } from "@/lib/utils/query";
 import { pickResult } from "@/lib/utils/read-results";
@@ -24,31 +25,20 @@ export function useRegisteredRingAddresses({
     () => createLogsPublicClientForNetwork(selectedNetwork.key),
     [selectedNetwork.key],
   );
+  const contractBase = {
+    address: normalizedAddress,
+    abi: heartbeatRingABI,
+    chainId: selectedNetwork.chain.id,
+  } as const;
+
   const { data: registrationReads } = useReadContracts({
     allowFailure: true,
     contracts: [
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "phase",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "ringHead",
-      },
-      {
-        address: normalizedAddress,
-        abi: heartbeatRingABI,
-        chainId: selectedNetwork.chain.id,
-        functionName: "totalParticipants",
-      },
+      { ...contractBase, functionName: "phase" },
+      { ...contractBase, functionName: "ringHead" },
+      { ...contractBase, functionName: "totalParticipants" },
     ],
-    query: {
-      refetchInterval: CONTRACT_POLL_INTERVAL_MS,
-    },
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
   const [registrationAddresses, setRegistrationAddresses] = useState<Address[]>([]);
   const [historicalAddresses, setHistoricalAddresses] = useState<Address[]>([]);
@@ -158,24 +148,7 @@ export function useRegisteredRingAddresses({
         const nextAddresses = getRegisteredAddressesFromLogs(logs);
 
         if (!cancelled && nextAddresses.length > 0) {
-          setHistoricalAddresses((current) => {
-            if (current.length === 0) return nextAddresses;
-
-            const seen = new Set(current.map((address) => address.toLowerCase()));
-            const merged = [...current];
-
-            for (const address of nextAddresses) {
-              const normalized = getAddress(address);
-              const key = normalized.toLowerCase();
-
-              if (!seen.has(key)) {
-                seen.add(key);
-                merged.push(normalized);
-              }
-            }
-
-            return merged;
-          });
+          setHistoricalAddresses((current) => mergeUniqueAddresses(current, nextAddresses));
         }
 
         lastProcessedBlock = latestBlock;

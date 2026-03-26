@@ -6,7 +6,7 @@ import { useReadContract, useReadContracts } from "wagmi";
 import { useWalletContext } from "@/context/wallet-context";
 import { factoryABI, heartbeatRingABI } from "@/lib/contracts/abi";
 import { normalizeRingAddresses, sortRingAddressesByPhase } from "@/lib/ring/browser";
-import { getQueryErrorMessage } from "@/lib/utils/errors";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { CONTRACT_POLL_INTERVAL_MS } from "@/lib/utils/query";
 
 export function useRingBrowser() {
@@ -51,7 +51,7 @@ export function useRingBrowser() {
   );
 
   return {
-    errorMessage: error ? getQueryErrorMessage(error, "Failed to load rings.") : null,
+    errorMessage: error ? getErrorMessage(error, "Failed to load rings.") : null,
     isLoading,
     ringAddresses,
     sortedRingAddresses,
