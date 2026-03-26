@@ -5,6 +5,7 @@ import { ActionPanel } from "@/components/ring-detail/action-panel";
 import { EventLog } from "@/components/ring-detail/event-log";
 import { GameStatus } from "@/components/ring-detail/game-status";
 import { RingVisualizer } from "@/components/ring-detail/ring-visualizer";
+import { Notice } from "@/components/ui/notice";
 import {
   createPublicClientForNetwork,
   getHeartbeatNetwork,
@@ -80,42 +81,39 @@ export default async function RingPage({ params, searchParams }: RingPageProps) 
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
         <Link
           href={{ pathname: "/", query: { network: selectedNetwork.key } }}
-          className="text-sm text-gray-400 hover:text-gray-200"
+          className="inline-flex text-sm text-gray-400 transition hover:text-gray-200"
         >
           ← Back to Rings
         </Link>
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-gray-500">
-              Ring Detail · {selectedNetwork.longLabel}
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-50">
+
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.22em] text-gray-500">Ring Detail</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-50">
               Ring {truncateAddress(ringAddress)}
             </h1>
-            <p className="mt-2 break-all font-mono text-sm text-gray-500">
-              {ringAddress}
-            </p>
+            <p className="break-all font-mono text-xs text-gray-500">{ringAddress}</p>
+          </div>
+
+          <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500">Network</p>
+            <p className="mt-1 text-sm text-gray-200">{selectedNetwork.longLabel}</p>
           </div>
         </div>
       </section>
 
       <GameStatus ringAddress={ringAddress} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        <div className="order-1">
-          <RingVisualizer ringAddress={ringAddress} />
-        </div>
-        <div className="order-3 xl:order-2">
-          <EventLog ringAddress={ringAddress} />
-        </div>
-        <div className="order-2 xl:order-3 xl:col-span-2">
-          <ActionPanel ringAddress={ringAddress} />
-        </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <RingVisualizer ringAddress={ringAddress} />
+        <EventLog ringAddress={ringAddress} />
       </div>
+
+      <ActionPanel ringAddress={ringAddress} />
     </div>
   );
 }
@@ -126,23 +124,22 @@ function RingPageState({
   title,
   tone = "default",
 }: RingPageStateProps) {
-  const toneClass =
-    tone === "error"
-      ? "border-red-500/30 bg-red-500/10 text-red-200"
-      : "border-gray-800 bg-gray-900 text-gray-400";
+  const noticeTone = tone === "error" ? "error" : "default";
 
   return (
-    <div className="space-y-6">
-      <Link
-        href={{ pathname: "/", query: { network: networkKey } }}
-        className="text-sm text-gray-400 hover:text-gray-200"
-      >
-        ← Back to Rings
-      </Link>
-      <div className={`rounded-2xl border p-6 ${toneClass}`}>
-        <h1 className="text-2xl font-semibold text-gray-50">{title}</h1>
-        <p className="mt-2 text-sm">{description}</p>
-      </div>
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+        <Link
+          href={{ pathname: "/", query: { network: networkKey } }}
+          className="inline-flex text-sm text-gray-400 transition hover:text-gray-200"
+        >
+          ← Back to Rings
+        </Link>
+
+        <Notice tone={noticeTone} title={title} className="mt-4">
+          {description}
+        </Notice>
+      </section>
     </div>
   );
 }

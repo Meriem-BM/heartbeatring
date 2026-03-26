@@ -5,8 +5,8 @@ import { getAddress } from "viem";
 import type { Address } from "viem";
 import { useReadContract, useReadContracts } from "wagmi";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
-import { useRegisteredRingAddresses } from "@/hooks/useRegisteredRingAddresses";
+import { useWalletContext } from "@/context/wallet-context";
+import { useRegisteredRingAddresses } from "@/hooks/ring/useRegisteredRingAddresses";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import type { RingNode } from "@/lib/ring/visualizer";
 import type { ParticipantData, RingAddressProps } from "@/lib/types/ring";
@@ -15,7 +15,7 @@ import { pickResult } from "@/lib/utils/read-results";
 
 export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
   const normalizedAddress = getAddress(ringAddress);
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
   const registeredAddresses = useRegisteredRingAddresses({ ringAddress });
 
   const { data: phaseData } = useReadContract({

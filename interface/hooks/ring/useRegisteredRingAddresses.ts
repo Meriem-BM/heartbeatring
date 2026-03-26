@@ -5,7 +5,7 @@ import { getAddress, zeroAddress } from "viem";
 import type { Address } from "viem";
 import { usePublicClient, useReadContracts } from "wagmi";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useWalletContext } from "@/context/wallet-context";
 import { createLogsPublicClientForNetwork } from "@/lib/chain/config";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import { getRegisteredAddressesFromLogs } from "@/lib/ring/logs";
@@ -18,7 +18,7 @@ export function useRegisteredRingAddresses({
   ringAddress,
 }: RingAddressProps) {
   const normalizedAddress = getAddress(ringAddress);
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
   const publicClient = usePublicClient({ chainId: selectedNetwork.chain.id });
   const logsClient = useMemo(
     () => createLogsPublicClientForNetwork(selectedNetwork.key),

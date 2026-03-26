@@ -12,7 +12,6 @@ import {
 } from "wagmi";
 
 import { useWalletContext } from "@/context/wallet-context";
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import { ACTION_SUCCESS_MESSAGES, type ActionKind } from "@/lib/ring/ui";
 import type { ParticipantData, RingAddressProps } from "@/lib/types/ring";
@@ -49,9 +48,12 @@ export function useRingActions({
 }: RingAddressProps): UseRingActionsResult {
   const normalizedAddress = getAddress(ringAddress);
   const queryClient = useQueryClient();
-  const selectedNetwork = useSelectedNetwork();
-  const { address: connectedAddress, isChainMatched, isConnected } =
-    useWalletContext();
+  const {
+    address: connectedAddress,
+    isChainMatched,
+    isConnected,
+    selectedNetwork,
+  } = useWalletContext();
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
 
   const [targetAddress, setTargetAddress] = useState("");

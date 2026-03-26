@@ -1,6 +1,7 @@
 "use client";
 
-import { useRingEvents } from "@/hooks/useRingEvents";
+import { Notice } from "@/components/ui/notice";
+import { useRingEvents } from "@/hooks/ring/useRingEvents";
 import { EVENT_LOG_LIMIT } from "@/lib/ring/ui";
 import type { RingAddressProps } from "@/lib/types/ring";
 
@@ -21,23 +22,23 @@ export function EventLog({ ringAddress }: RingAddressProps) {
         </span>
       </div>
 
-      <div className="mt-5 max-h-[30rem] space-y-2 overflow-y-auto pr-1">
+      <div className="mt-5 max-h-120 space-y-2 overflow-y-auto pr-1">
         {loading && entries.length === 0 && (
-          <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-4 text-sm text-gray-400">
+          <Notice tone="default" className="rounded-lg px-3 py-4 text-gray-400">
             Loading events...
-          </div>
+          </Notice>
         )}
 
         {loadError && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-4 text-sm text-red-200">
+          <Notice tone="error" className="rounded-lg px-3 py-4">
             {loadError}
-          </div>
+          </Notice>
         )}
 
         {!loading && !loadError && entries.length === 0 && (
-          <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-4 text-sm text-gray-400">
+          <Notice tone="default" className="rounded-lg px-3 py-4 text-gray-400">
             No events yet.
-          </div>
+          </Notice>
         )}
 
         {entries.map((entry) => (

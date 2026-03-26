@@ -1,27 +1,28 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type { Address } from "viem";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 
-import { getErrorMessage } from "@/lib/utils/errors";
+import {
+  getHeartbeatNetwork,
+  HEARTBEAT_NETWORK_SEARCH_PARAM,
+  resolveHeartbeatNetworkKeyFromChainId,
+} from "@/lib/chain/config";
 
 type WalletContextValue = {
   address: Address | undefined;
   chainId: number | undefined;
-  clearSwitchError: () => void;
   isChainMatched: (targetChainId: number) => boolean;
   isConnected: boolean;
-  isSwitchingNetwork: boolean;
-  switchNetworkError: string | null;
-  switchWalletChain: (targetChainId: number) => Promise<boolean>;
+  selectedNetwork: ReturnType<typeof getHeartbeatNetwork>;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -31,58 +32,37 @@ type WalletProviderProps = {
 };
 
 export function WalletProvider({ children }: WalletProviderProps) {
+  const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { switchChainAsync, isPending: isSwitchingNetwork } = useSwitchChain();
-  const [switchNetworkError, setSwitchNetworkError] = useState<string | null>(null);
-
-  const clearSwitchError = useCallback(() => {
-    setSwitchNetworkError(null);
-  }, []);
+  const searchParamNetworkKey = searchParams.get(HEARTBEAT_NETWORK_SEARCH_PARAM);
+  const walletNetworkKey = isConnected
+    ? resolveHeartbeatNetworkKeyFromChainId(chainId)
+    : null;
+  const selectedNetwork = useMemo(
+    () => getHeartbeatNetwork(walletNetworkKey ?? searchParamNetworkKey),
+    [searchParamNetworkKey, walletNetworkKey],
+  );
 
   const isChainMatched = useCallback(
     (targetChainId: number) => chainId !== undefined && chainId === targetChainId,
     [chainId],
   );
 
-  const switchWalletChain = useCallback(async (targetChainId: number) => {
-    if (!isConnected) return false;
-
-    if (chainId === targetChainId) {
-      setSwitchNetworkError(null);
-      return true;
-    }
-
-    try {
-      await switchChainAsync({ chainId: targetChainId });
-      setSwitchNetworkError(null);
-      return true;
-    } catch (error) {
-      setSwitchNetworkError(getErrorMessage(error, "Failed to switch wallet network."));
-      return false;
-    }
-  }, [chainId, isConnected, switchChainAsync]);
-
   const value = useMemo(
     () => ({
       address,
       chainId,
-      clearSwitchError,
       isChainMatched,
       isConnected,
-      isSwitchingNetwork,
-      switchNetworkError,
-      switchWalletChain,
+      selectedNetwork,
     }),
     [
       address,
       chainId,
-      clearSwitchError,
       isChainMatched,
       isConnected,
-      isSwitchingNetwork,
-      switchNetworkError,
-      switchWalletChain,
+      selectedNetwork,
     ],
   );
 

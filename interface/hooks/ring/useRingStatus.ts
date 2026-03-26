@@ -3,17 +3,17 @@
 import { getAddress } from "viem";
 import { useReadContracts } from "wagmi";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useWalletContext } from "@/context/wallet-context";
+import { useCountdown } from "@/hooks/common/useCountdown";
 import { heartbeatRingABI } from "@/lib/contracts/abi";
 import { GAME_STATUS_PHASE_META } from "@/lib/ring/ui";
 import type { RingAddressProps } from "@/lib/types/ring";
-import { useCountdown } from "@/hooks/useCountdown";
 import { CONTRACT_POLL_INTERVAL_MS } from "@/lib/utils/query";
 import { pickResult } from "@/lib/utils/read-results";
 
 export function useRingStatus({ ringAddress }: RingAddressProps) {
   const normalizedAddress = getAddress(ringAddress);
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
   const { data, refetch } = useReadContracts({
     allowFailure: true,
     contracts: [

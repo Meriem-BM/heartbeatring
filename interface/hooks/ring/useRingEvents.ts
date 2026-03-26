@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 import { getAddress } from "viem";
 
-import { useSelectedNetwork } from "@/hooks/useSelectedNetwork";
+import { useWalletContext } from "@/context/wallet-context";
 import { createLogsPublicClientForNetwork } from "@/lib/chain/config";
 import { buildEventEntries, mergeEventEntries } from "@/lib/ring/logs";
 import type { EventEntry, RawLog, RingAddressProps } from "@/lib/types/ring";
@@ -16,7 +16,7 @@ import { CONTRACT_POLL_INTERVAL_MS, LOGS_FROM_BLOCK } from "@/lib/utils/query";
 
 export function useRingEvents({ ringAddress }: RingAddressProps) {
   const normalizedAddress = getAddress(ringAddress);
-  const selectedNetwork = useSelectedNetwork();
+  const { selectedNetwork } = useWalletContext();
   const publicClient = useMemo(
     () => createLogsPublicClientForNetwork(selectedNetwork.key),
     [selectedNetwork.key],
