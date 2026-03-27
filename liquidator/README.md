@@ -1,6 +1,13 @@
 # HeartbeatRing Liquidator
 
-One-shot liquidator bot for HeartbeatRing. It scans all rings from the configured factory, finds delinquent players, and submits `liquidate(target)` transactions up to a run cap.
+One-shot CLI for HeartbeatRing liquidation. It scans rings from the configured factory, finds delinquent members, and can submit `liquidate(target)` transactions.
+
+## Requirements
+
+- Bun `1.3+`
+- Rootstock RPC URL(s) for the network(s) you want to run
+- Factory address per network
+- Private key per network for live runs (not required for `--dry-run`)
 
 ## Setup
 
@@ -11,80 +18,70 @@ cd liquidator
 bun install
 ```
 
-2. Configure environment:
+2. Create your env file:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Fill required values for your target network(s):
+3. Set required values in `.env`:
 
 - `LIQUIDATOR_TESTNET_RPC_URL`
 - `LIQUIDATOR_TESTNET_FACTORY_ADDRESS`
-- `LIQUIDATOR_TESTNET_PRIVATE_KEY`
+- `LIQUIDATOR_TESTNET_PRIVATE_KEY` (required unless using `--dry-run`)
 - `LIQUIDATOR_MAINNET_RPC_URL`
 - `LIQUIDATOR_MAINNET_FACTORY_ADDRESS`
-- `LIQUIDATOR_MAINNET_PRIVATE_KEY`
-- Optional: `LIQUIDATOR_MAX_TX_PER_RUN` (default `5`)
+- `LIQUIDATOR_MAINNET_PRIVATE_KEY` (required unless using `--dry-run`)
+- `LIQUIDATOR_MAX_TX_PER_RUN` (optional, default: `5`)
 
-## CLI
+## Test Workflow
 
-From `liquidator/`:
-
-```bash
-bun run liquidator
-```
-
-From repo root:
+1. Run tests from repo root:
 
 ```bash
-bun run liquidator
+bun run liquidator:test
 ```
 
-Flags:
+2. Confirm all tests pass (`7 pass`, `0 fail`).
 
-- `--network testnet|mainnet|both` (default: `testnet`)
-- `--max-tx <n>` (override `LIQUIDATOR_MAX_TX_PER_RUN`)
-- `--dry-run` (detect/report only, no transactions)
-- `--help`
+## Run Workflow
 
-Examples:
+1. Start with a dry run (safe, no transactions):
 
 ```bash
 bun run liquidator --network testnet --dry-run
+```
+
+2. Review logs and JSON summary output.
+
+3. Run live liquidation:
+
+```bash
+bun run liquidator --network testnet
+```
+
+4. Optional: override max transactions for one run:
+
+```bash
 bun run liquidator --network testnet --max-tx 10
+```
+
+5. Optional: run both networks in one execution:
+
+```bash
 bun run liquidator --network both --max-tx 5
 ```
 
-## Behavior
+## CLI Options
 
-- Ring source: `getAllRings()` on the configured factory.
-- Ring filter: only `phase == Active` (`1`).
-- Candidate detection: `getRing()` members + `isDelinquent(member)` checks.
-- Queue ordering: deterministic by factory ring order, then ring member order.
-- Execution: processes candidates up to `MAX_TX_PER_RUN`.
-- Failure handling: reverts/race conditions are logged and the run continues.
-- Bounty handling: this tool does **not** call `withdrawBounty`.
+- `--network testnet|mainnet|both` (default: `testnet`)
+- `--max-tx N` (overrides `LIQUIDATOR_MAX_TX_PER_RUN`)
+- `--dry-run` (scan and report only)
+- `--help`
 
-## Scheduled Runs
+## Runtime Notes
 
-Use any scheduler that can run a one-shot command.
-
-Example cron entry (every 5 minutes on testnet):
-
-```cron
-*/5 * * * * cd /path/to/heartbeatring/liquidator && /usr/local/bin/bun run liquidator --network testnet >> /var/log/heartbeatring-liquidator.log 2>&1
-```
-
-## Testing
-
-```bash
-cd liquidator
-bun test
-```
-
-## Manual Acceptance (Testnet)
-
-1. `--dry-run` shows expected delinquent targets.
-2. Live run submits liquidation txs and respects `MAX_TX_PER_RUN`.
-3. Next run no longer targets already-liquidated addresses.
+- Only active rings are scanned (`phase == 1`).
+- Candidates are processed in deterministic order.
+- The transaction cap is always enforced per run.
+- A failed liquidation does not stop the remaining run.
