@@ -1,0 +1,8 @@
+{
+  "name": "heartbeatring",
+  "private": true,
+  "scripts": {
+    "liquidator": "bun --cwd liquidator src/cli.ts",
+    "liquidator:test": "bun --cwd liquidator test"
+  }
+}
