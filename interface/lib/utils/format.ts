@@ -40,15 +40,23 @@ export function formatDuration(value: bigint | number) {
 
 export function formatCountdown(totalSeconds: number) {
   const safeSeconds = Math.max(totalSeconds, 0);
-  const minutes = Math.floor(safeSeconds / 60);
-  const seconds = safeSeconds % 60;
+  const days = Math.floor(safeSeconds / 86_400);
+  const remainingAfterDays = safeSeconds % 86_400;
+  const hours = Math.floor(remainingAfterDays / 3_600);
+  const remainingAfterHours = remainingAfterDays % 3_600;
+  const minutes = Math.floor(remainingAfterHours / 60);
+  const seconds = remainingAfterHours % 60;
 
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}:${remainingMinutes
+  if (days > 0) {
+    return `${days}d ${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
   }
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;

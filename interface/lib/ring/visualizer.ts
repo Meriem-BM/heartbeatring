@@ -30,19 +30,16 @@ export function positionRingNodes(nodes: readonly RingNode[]) {
 
 export function buildConnectionPairs(
   nodes: readonly RingNode[],
-  closeLoop: boolean,
 ) {
   const activeNodes = nodes.filter((node) => node.alive);
 
   if (activeNodes.length <= 1) return [];
+  if (activeNodes.length === 2) {
+    return [[activeNodes[0]!.address, activeNodes[1]!.address] as const];
+  }
 
-  return activeNodes.flatMap((node, index) => {
-    const nextNode = activeNodes[index + 1];
-
-    if (!nextNode) {
-      return closeLoop ? [[node.address, activeNodes[0]!.address] as const] : [];
-    }
-
-    return [[node.address, nextNode.address] as const];
+  return activeNodes.map((node, index) => {
+    const nextNode = activeNodes[(index + 1) % activeNodes.length]!;
+    return [node.address, nextNode.address] as const;
   });
 }
