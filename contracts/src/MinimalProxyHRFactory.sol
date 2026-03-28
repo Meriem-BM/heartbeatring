@@ -14,7 +14,7 @@ contract MinimalProxyHRFactory {
     using Clones for address;
 
     // ------------------------------------------------------------
-    // ------------------------- State ----------------------------
+    //                           State
     // ------------------------------------------------------------
 
     address public immutable implementation;
@@ -23,7 +23,7 @@ contract MinimalProxyHRFactory {
     mapping(address => address[]) public creatorRings; // creator -> their rings
 
     // ------------------------------------------------------------
-    // ------------------------ Events ----------------------------
+    //                           Events
     // ------------------------------------------------------------
 
     event RingCreated(
@@ -39,7 +39,7 @@ contract MinimalProxyHRFactory {
     event ImplementationDeployed(address indexed implementation);
 
     // ------------------------------------------------------------
-    // ------------------- External Functions ---------------------
+    //                   External Functions
     // ------------------------------------------------------------
 
     constructor() {
@@ -93,7 +93,7 @@ contract MinimalProxyHRFactory {
     }
 
     // ------------------------------------------------------------
-    // -------------------- View Functions ------------------------
+    //                   View Functions
     // ------------------------------------------------------------
 
     /**
