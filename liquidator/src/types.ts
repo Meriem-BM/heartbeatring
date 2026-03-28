@@ -8,6 +8,7 @@ export type ParsedCliOptions = {
   help: boolean;
   maxTxOverride?: number;
   network: CliNetworkOption;
+  watch: boolean;
 };
 
 export type NetworkRuntimeConfig = {
@@ -16,6 +17,7 @@ export type NetworkRuntimeConfig = {
   key: NetworkKey;
   privateKey?: Hex;
   rpcUrl: string;
+  wsRpcUrl?: string;
 };
 
 export type LiquidatorRunOptions = {
@@ -48,6 +50,16 @@ export type ScanReport = {
 };
 
 export type TxStatus = "success" | "reverted";
+
+export type NewHeadHandlers = {
+  onBlock: (blockNumber: bigint) => void;
+  onError: (error: unknown) => void;
+};
+
+export type NewHeadSubscriber = (
+  network: NetworkKey,
+  handlers: NewHeadHandlers,
+) => () => void;
 
 export type ExecutionReport = {
   skippedByCap: number;

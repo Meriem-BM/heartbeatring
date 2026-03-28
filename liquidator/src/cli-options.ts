@@ -14,6 +14,7 @@ export function parseCliOptions(argv: string[]): ParsedCliOptions {
     dryRun: false,
     help: false,
     network: "testnet",
+    watch: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -30,6 +31,11 @@ export function parseCliOptions(argv: string[]): ParsedCliOptions {
 
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+
+    if (arg === "--watch") {
+      options.watch = true;
       continue;
     }
 
@@ -75,15 +81,19 @@ export function parseCliOptions(argv: string[]): ParsedCliOptions {
 
 export function helpText() {
   return [
-    "HeartbeatRing liquidator (one-shot)",
+    "HeartbeatRing liquidator",
     "",
     "Usage:",
-    "  bun run liquidator [--network testnet|mainnet|both] [--max-tx N] [--dry-run]",
+    "  bun run liquidator [--network testnet|mainnet|both] [--max-tx N] [--dry-run] [--watch]",
     "",
     "Flags:",
     "  --network    Network scope. Defaults to testnet.",
     "  --max-tx     Override LIQUIDATOR_MAX_TX_PER_RUN for this run.",
     "  --dry-run    Detect and report candidates without sending transactions.",
+    "  --watch      Continuous mode: run once at startup, then on each new block header via WebSocket subscriptions.",
     "  --help       Show this help output.",
+    "",
+    "Watch mode env:",
+    "  LIQUIDATOR_TESTNET_WS_RPC_URL / LIQUIDATOR_MAINNET_WS_RPC_URL (required for selected networks when --watch is enabled).",
   ].join("\n");
 }

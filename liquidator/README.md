@@ -1,11 +1,14 @@
 # HeartbeatRing Liquidator
 
-One-shot CLI for HeartbeatRing liquidation. It scans rings from the configured factory, finds delinquent members, and can submit `liquidate(target)` transactions.
+CLI for HeartbeatRing liquidation. It supports:
+- one-shot execution (single scan + optional transactions)
+- continuous watch mode (`--watch`) that reacts to each new block header via WebSocket subscriptions
 
 ## Requirements
 
 - Bun `1.3+`
 - Rootstock RPC URL(s) for the network(s) you want to run
+- Rootstock WebSocket RPC URL(s) for watch mode
 - Factory address per network
 - Private key per network for live runs (not required for `--dry-run`)
 
@@ -27,9 +30,11 @@ cp .env.example .env
 3. Set required values in `.env`:
 
 - `LIQUIDATOR_TESTNET_RPC_URL`
+- `LIQUIDATOR_TESTNET_WS_RPC_URL` (required for `--watch`)
 - `LIQUIDATOR_TESTNET_FACTORY_ADDRESS`
 - `LIQUIDATOR_TESTNET_PRIVATE_KEY` (required unless using `--dry-run`)
 - `LIQUIDATOR_MAINNET_RPC_URL`
+- `LIQUIDATOR_MAINNET_WS_RPC_URL` (required for `--watch`)
 - `LIQUIDATOR_MAINNET_FACTORY_ADDRESS`
 - `LIQUIDATOR_MAINNET_PRIVATE_KEY` (required unless using `--dry-run`)
 - `LIQUIDATOR_MAX_TX_PER_RUN` (optional, default: `5`)
@@ -54,19 +59,25 @@ bun run liquidator --network testnet --dry-run
 
 2. Review logs and JSON summary output.
 
-3. Run live liquidation:
+3. Run live one-shot liquidation:
 
 ```bash
 bun run liquidator --network testnet
 ```
 
-4. Optional: override max transactions for one run:
+4. Optional: run continuous watch mode (instant liquidation on next block):
+
+```bash
+bun run liquidator --network testnet --watch
+```
+
+5. Optional: override max transactions for one run:
 
 ```bash
 bun run liquidator --network testnet --max-tx 10
 ```
 
-5. Optional: run both networks in one execution:
+6. Optional: run both networks in one execution/watch process:
 
 ```bash
 bun run liquidator --network both --max-tx 5
@@ -77,6 +88,7 @@ bun run liquidator --network both --max-tx 5
 - `--network testnet|mainnet|both` (default: `testnet`)
 - `--max-tx N` (overrides `LIQUIDATOR_MAX_TX_PER_RUN`)
 - `--dry-run` (scan and report only)
+- `--watch` (continuous mode; startup run + run on each new block header)
 - `--help`
 
 ## Runtime Notes
@@ -85,3 +97,24 @@ bun run liquidator --network both --max-tx 5
 - Candidates are processed in deterministic order.
 - The transaction cap is always enforced per run.
 - A failed liquidation does not stop the remaining run.
+- Watch mode uses WebSocket `newHeads` subscriptions and reconnects with exponential backoff (`1s`, `2s`, `4s`, ... up to `30s`).
+- Watch mode prevents overlapping runs per network and coalesces multiple block triggers into one follow-up run.
+
+## Autostart (systemd)
+
+Use the provided template:
+- `deploy/systemd/heartbeatring-liquidator.service`
+
+Install on Linux (example):
+
+```bash
+sudo cp liquidator/deploy/systemd/heartbeatring-liquidator.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable heartbeatring-liquidator
+sudo systemctl start heartbeatring-liquidator
+sudo systemctl status heartbeatring-liquidator
+```
+
+Before starting:
+- set `WorkingDirectory`, `User`, and `EnvironmentFile` in the service file for your machine
+- ensure `liquidator/.env` contains the required RPC/WS/factory/private-key values

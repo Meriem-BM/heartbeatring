@@ -1,0 +1,18 @@
+[Unit]
+Description=HeartbeatRing Liquidator (watch mode)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=change-me
+WorkingDirectory=/opt/heartbeatring
+EnvironmentFile=/opt/heartbeatring/liquidator/.env
+ExecStart=/usr/bin/env bun --cwd liquidator src/cli.ts --network testnet --watch
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,11 +1,11 @@
 # HeartbeatRing
 
-HeartbeatRing is a Rootstock project with three parts:
+HeartbeatRing is a Rootstock project with four parts:
 
 - `contracts/`: Solidity contracts and deployment scripts (Foundry)
 - `interface/`: Next.js web app
 - `liquidator/`: one-shot CLI liquidator bot
-- `subgraph/`: Graph indexer for ring event history
+- `heartbeatring/`: Graph subgraph for ring event history (Graph Studio)
 
 ## What This Project Is
 
@@ -13,6 +13,24 @@ HeartbeatRing is an on-chain accountability game built around recurring check-in
 Participants join a ring with a fixed stake and must submit a heartbeat each epoch.
 If a participant misses the allowed window, they become delinquent and can be liquidated.
 The interface is used to create and interact with rings, and the liquidator automates delinquency enforcement.
+
+## Rules Enforced By The Protocol
+
+1. Ring creators define game parameters on creation: stake amount, epoch duration, liquidation grace period, min/max participants, and liquidation bounty (bps).
+2. Players can only join during registration by depositing the exact stake amount; duplicate joins and over-capacity joins are rejected.
+3. A ring only becomes active when participant constraints are satisfied; otherwise participants can be refunded after registration closes.
+4. In active phase, each alive participant must submit a heartbeat every epoch before the delinquency window.
+5. Delinquent participants can be liquidated by anyone after grace period expiry; liquidation pays a bounty and redistributes remaining stake to ring neighbors.
+6. The ring shrinks as participants are liquidated until game over; the final survivor can claim the remaining pool.
+7. Contract actions are phase-gated (`Registration`, `Active`, `Completed`) to prevent invalid state transitions.
+
+## Design Choices And Reasoning
+
+- State machine model: explicit phases make lifecycle transitions auditable and reduce edge-case behavior.
+- Circular ring structure: neighbor-based redistribution creates local accountability incentives and deterministic liquidation effects.
+- Event-first architecture: contracts emit rich events, and the subgraph indexes them for reliable historical activity in the UI.
+- Factory + minimal proxies: each ring is an isolated clone deployment, reducing deployment cost while preserving per-ring state separation.
+- Operational safety: the dedicated liquidator bot automates delinquency enforcement so game progression does not depend on a single manual actor.
 
 ## Use Cases
 
@@ -117,6 +135,35 @@ bun --cwd interface run build
 bun --cwd interface run start
 ```
 
+To read historical events from the deployed subgraph, set:
+
+```bash
+NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_TESTNET=https://api.studio.thegraph.com/query/1717460/heartbeatring/version/latest
+```
+
+## Subgraph Workflow (`heartbeatring/`)
+
+1. Build subgraph artifacts:
+
+```bash
+cd heartbeatring
+bun run codegen
+bun run build
+```
+
+2. Deploy to Graph Studio:
+
+```bash
+cd heartbeatring
+graph deploy heartbeatring subgraph.yaml --deploy-key <DEPLOY_KEY> -l v0.0.2
+```
+
+3. Use the latest Studio endpoint in the interface env:
+
+```bash
+NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_TESTNET=https://api.studio.thegraph.com/query/1717460/heartbeatring/version/latest
+```
+
 ## Liquidator Workflow (`liquidator/`)
 
 1. Ensure `liquidator/.env` is configured for the target network(s).
@@ -159,4 +206,3 @@ Common options:
 - [contracts/README.md](contracts/README.md)
 - [interface/README.md](interface/README.md)
 - [liquidator/README.md](liquidator/README.md)
-- [subgraph/README.md](subgraph/README.md)

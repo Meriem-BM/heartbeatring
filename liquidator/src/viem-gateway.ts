@@ -3,6 +3,7 @@ import {
   createWalletClient,
   getAddress,
   http,
+  webSocket,
 } from "viem";
 import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -10,6 +11,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import { factoryAbi, heartbeatRingAbi } from "./abi";
 import type {
   LiquidatorGateway,
+  NewHeadHandlers,
+  NewHeadSubscriber,
   NetworkKey,
   NetworkRuntimeConfig,
   TxStatus,
@@ -137,5 +140,35 @@ export function createViemGateway(
 
       return receipt.status as TxStatus;
     },
+  };
+}
+
+export function createViemNewHeadSubscriber(
+  networkConfigs: readonly NetworkRuntimeConfig[],
+): NewHeadSubscriber {
+  const wsRpcByNetwork = new Map<NetworkKey, string>();
+
+  for (const config of networkConfigs) {
+    if (config.wsRpcUrl) {
+      wsRpcByNetwork.set(config.key, config.wsRpcUrl);
+    }
+  }
+
+  return (network: NetworkKey, handlers: NewHeadHandlers) => {
+    const wsRpcUrl = wsRpcByNetwork.get(network);
+
+    if (!wsRpcUrl) {
+      throw new Error(`No WebSocket RPC configured for ${network}.`);
+    }
+
+    const publicClient = createPublicClient({
+      transport: webSocket(wsRpcUrl, { retryCount: 0 }),
+    });
+
+    return publicClient.watchBlockNumber({
+      emitOnBegin: false,
+      onBlockNumber: handlers.onBlock,
+      onError: handlers.onError,
+    });
   };
 }

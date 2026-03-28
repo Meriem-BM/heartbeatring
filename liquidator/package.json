@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "liquidator": "bun src/cli.ts",
+    "liquidator:watch": "bun src/cli.ts --watch",
     "test": "bun test"
   },
   "dependencies": {
