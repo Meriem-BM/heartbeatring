@@ -112,10 +112,6 @@ export function loadRuntimeConfig(
       );
     }
 
-    if (options.watch && !wsRpcUrl) {
-      networkIssues.push(`${envKeys.wsRpcUrl} is required when --watch is enabled.`);
-    }
-
     if (wsRpcUrl && !isValidWsRpcUrl(wsRpcUrl)) {
       networkIssues.push(`${envKeys.wsRpcUrl} must be a valid ws:// or wss:// URL.`);
     }

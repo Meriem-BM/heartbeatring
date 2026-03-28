@@ -67,7 +67,7 @@ async function main() {
           );
 
           consoleLogger.info(
-            `[watch:${networkConfig.key}] Summary: rings=${summary.ringsScanned}, delinquent=${summary.delinquentTargetsFound}, txAttempted=${summary.txAttempted}, txSucceeded=${summary.txSucceeded}, txFailed=${summary.txFailed}.`,
+            `[watch:${networkConfig.key}] Summary: ringsScanned=${summary.ringsScanned}, activeRings=${summary.activeRings}, delinquent=${summary.delinquentTargetsFound}, txAttempted=${summary.txAttempted}, txSucceeded=${summary.txSucceeded}, txFailed=${summary.txFailed}.`,
           );
         },
         subscriber,

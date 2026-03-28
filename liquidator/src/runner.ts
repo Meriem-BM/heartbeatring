@@ -14,6 +14,10 @@ import type {
   ScanReport,
 } from "./types";
 
+function candidateKey(candidate: LiquidationCandidate) {
+  return `${candidate.network}:${candidate.ringAddress.toLowerCase()}:${candidate.targetAddress.toLowerCase()}`;
+}
+
 function createNetworkCounters() {
   return {
     mainnet: 0,
@@ -22,8 +26,35 @@ function createNetworkCounters() {
 }
 
 function toErrorMessage(error: unknown) {
+  if (typeof error === "string" && error.length > 0) {
+    return error;
+  }
+
   if (error instanceof Error && error.message) {
     return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const message = Reflect.get(error, "message");
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+
+    const shortMessage = Reflect.get(error, "shortMessage");
+    const details = Reflect.get(error, "details");
+    const fragments = [shortMessage, details].filter(
+      (part): part is string => typeof part === "string" && part.length > 0,
+    );
+
+    if (fragments.length > 0) {
+      return fragments.join(" | ");
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // Fall back to String(error) when object is not serializable.
+    }
   }
 
   return String(error);
@@ -235,6 +266,30 @@ export async function executeCandidates(
   };
 }
 
+function mergeExecutionReports(
+  left: ExecutionReport,
+  right: ExecutionReport,
+): ExecutionReport {
+  return {
+    skippedByCap: left.skippedByCap + right.skippedByCap,
+    txAttempted: left.txAttempted + right.txAttempted,
+    txFailed: left.txFailed + right.txFailed,
+    txFailedByNetwork: {
+      mainnet:
+        left.txFailedByNetwork.mainnet + right.txFailedByNetwork.mainnet,
+      testnet:
+        left.txFailedByNetwork.testnet + right.txFailedByNetwork.testnet,
+    },
+    txSucceeded: left.txSucceeded + right.txSucceeded,
+    txSucceededByNetwork: {
+      mainnet:
+        left.txSucceededByNetwork.mainnet + right.txSucceededByNetwork.mainnet,
+      testnet:
+        left.txSucceededByNetwork.testnet + right.txSucceededByNetwork.testnet,
+    },
+  };
+}
+
 export async function runLiquidator(
   gateway: LiquidatorGateway,
   networkConfigs: readonly NetworkRuntimeConfig[],
@@ -243,12 +298,50 @@ export async function runLiquidator(
 ): Promise<RunSummary> {
   const networks = networkConfigs.map((config) => config.key);
   const scanReport = await scanNetworks(gateway, networks, logger);
-  const executionReport = await executeCandidates(
+  let executionReport = await executeCandidates(
     gateway,
     scanReport.candidates,
     options,
     logger,
   );
+
+  if (!options.dryRun && executionReport.txAttempted < options.maxTxPerRun) {
+    const seenCandidateKeys = new Set(scanReport.candidates.map(candidateKey));
+
+    while (executionReport.txAttempted < options.maxTxPerRun) {
+      const remainingTx = options.maxTxPerRun - executionReport.txAttempted;
+      const refreshScan = await scanNetworks(gateway, networks, logger);
+      const refreshCandidates = refreshScan.candidates.filter((candidate) => {
+        const key = candidateKey(candidate);
+
+        if (seenCandidateKeys.has(key)) {
+          return false;
+        }
+
+        seenCandidateKeys.add(key);
+        return true;
+      });
+
+      if (refreshCandidates.length === 0) {
+        break;
+      }
+
+      logger.info(
+        `Refresh scan found ${refreshCandidates.length} additional candidate(s); ${remainingTx} tx slot(s) remaining in this run.`,
+      );
+
+      const refreshExecution = await executeCandidates(
+        gateway,
+        refreshCandidates,
+        {
+          ...options,
+          maxTxPerRun: remainingTx,
+        },
+        logger,
+      );
+      executionReport = mergeExecutionReports(executionReport, refreshExecution);
+    }
+  }
 
   return {
     activeRings: scanReport.totals.activeRings,

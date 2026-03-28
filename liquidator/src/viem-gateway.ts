@@ -3,7 +3,6 @@ import {
   createWalletClient,
   getAddress,
   http,
-  webSocket,
 } from "viem";
 import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -146,29 +145,60 @@ export function createViemGateway(
 export function createViemNewHeadSubscriber(
   networkConfigs: readonly NetworkRuntimeConfig[],
 ): NewHeadSubscriber {
-  const wsRpcByNetwork = new Map<NetworkKey, string>();
+  const rpcConfigByNetwork = new Map<
+    NetworkKey,
+    { chain: NetworkRuntimeConfig["chain"]; rpcUrl: string }
+  >();
 
   for (const config of networkConfigs) {
-    if (config.wsRpcUrl) {
-      wsRpcByNetwork.set(config.key, config.wsRpcUrl);
-    }
+    rpcConfigByNetwork.set(config.key, {
+      chain: config.chain,
+      rpcUrl: config.rpcUrl,
+    });
   }
 
   return (network: NetworkKey, handlers: NewHeadHandlers) => {
-    const wsRpcUrl = wsRpcByNetwork.get(network);
+    const rpcConfig = rpcConfigByNetwork.get(network);
 
-    if (!wsRpcUrl) {
-      throw new Error(`No WebSocket RPC configured for ${network}.`);
+    if (!rpcConfig) {
+      throw new Error(`No RPC client configured for ${network}.`);
     }
 
     const publicClient = createPublicClient({
-      transport: webSocket(wsRpcUrl, { retryCount: 0 }),
+      chain: rpcConfig.chain,
+      transport: http(rpcConfig.rpcUrl),
     });
+    let consecutivePollErrors = 0;
+    let lastPollErrorAt = 0;
+    const reconnectErrorThreshold = 3;
+    const reconnectWindowMs = 15_000;
 
     return publicClient.watchBlockNumber({
       emitOnBegin: false,
-      onBlockNumber: handlers.onBlock,
-      onError: handlers.onError,
+      poll: true,
+      pollingInterval: 3_000,
+      onBlockNumber: (blockNumber) => {
+        consecutivePollErrors = 0;
+        handlers.onBlock(blockNumber);
+      },
+      onError: (error) => {
+        const now = Date.now();
+
+        if (now - lastPollErrorAt > reconnectWindowMs) {
+          consecutivePollErrors = 0;
+        }
+
+        lastPollErrorAt = now;
+        consecutivePollErrors += 1;
+
+        if (consecutivePollErrors < reconnectErrorThreshold) {
+          return;
+        }
+
+        // Escalate only after repeated consecutive poll failures.
+        consecutivePollErrors = 0;
+        handlers.onError(error);
+      },
     });
   };
 }

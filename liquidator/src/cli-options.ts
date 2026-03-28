@@ -90,10 +90,10 @@ export function helpText() {
     "  --network    Network scope. Defaults to testnet.",
     "  --max-tx     Override LIQUIDATOR_MAX_TX_PER_RUN for this run.",
     "  --dry-run    Detect and report candidates without sending transactions.",
-    "  --watch      Continuous mode: run once at startup, then on each new block header via WebSocket subscriptions.",
+    "  --watch      Continuous mode: run once at startup, then on each new block via polling.",
     "  --help       Show this help output.",
     "",
-    "Watch mode env:",
-    "  LIQUIDATOR_TESTNET_WS_RPC_URL / LIQUIDATOR_MAINNET_WS_RPC_URL (required for selected networks when --watch is enabled).",
+    "Optional env:",
+    "  LIQUIDATOR_TESTNET_WS_RPC_URL / LIQUIDATOR_MAINNET_WS_RPC_URL (validated when provided).",
   ].join("\n");
 }

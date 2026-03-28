@@ -325,4 +325,61 @@ describe("end-to-end runner summary", () => {
     expect(summary.txAttempted).toBe(0);
     expect(summary.perNetwork[0]?.network).toBe("testnet");
   });
+
+  test("runLiquidator rescans when tx slots remain and captures new delinquent target", async () => {
+    const ring = toAddress(90);
+    const target1 = toAddress(901);
+    const target2 = toAddress(902);
+    const members = [target1, target2];
+    const txStatusByHash = new Map<Hex, TxStatus>();
+    const liquidatedTargets: Address[] = [];
+    let txCounter = 1;
+    let scanPass = 0;
+
+    const gateway: LiquidatorGateway = {
+      async getAllRings() {
+        return [ring];
+      },
+
+      async getPhase() {
+        return 1;
+      },
+
+      async getRingMembers() {
+        scanPass += 1;
+        return members;
+      },
+
+      async isDelinquent(_network, _ringAddress, participant) {
+        if (scanPass === 1) {
+          return participant.toLowerCase() === target1.toLowerCase();
+        }
+
+        return participant.toLowerCase() === target2.toLowerCase();
+      },
+
+      async liquidate(_network, _ringAddress, target) {
+        liquidatedTargets.push(target);
+        const txHash = `0x${txCounter.toString(16).padStart(64, "0")}` as Hex;
+        txCounter += 1;
+        txStatusByHash.set(txHash, "success");
+        return txHash;
+      },
+
+      async waitForReceipt(_network, txHash) {
+        return txStatusByHash.get(txHash) ?? "success";
+      },
+    };
+
+    const summary = await runLiquidator(
+      gateway,
+      [TESTNET_CONFIG],
+      { dryRun: false, maxTxPerRun: 2 },
+      silentLogger,
+    );
+
+    expect(summary.txAttempted).toBe(2);
+    expect(summary.txSucceeded).toBe(2);
+    expect(liquidatedTargets).toEqual([target1, target2]);
+  });
 });

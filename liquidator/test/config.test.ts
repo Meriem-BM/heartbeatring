@@ -30,10 +30,10 @@ describe("runtime config", () => {
     expect(runtime.networks[0]?.wsRpcUrl).toBeUndefined();
   });
 
-  test("watch mode requires ws rpc url for selected network", () => {
-    expect(() =>
-      loadRuntimeConfig(baseEnv(), options({ watch: true })),
-    ).toThrow("LIQUIDATOR_TESTNET_WS_RPC_URL is required when --watch is enabled.");
+  test("watch mode does not require ws rpc url", () => {
+    const runtime = loadRuntimeConfig(baseEnv(), options({ watch: true }));
+    expect(runtime.networks.length).toBe(1);
+    expect(runtime.networks[0]?.wsRpcUrl).toBeUndefined();
   });
 
   test("invalid ws rpc url is rejected", () => {
