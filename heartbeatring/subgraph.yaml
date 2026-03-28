@@ -10,7 +10,8 @@ dataSources:
     source:
       address: "0xf3e5fe303E01546a6Cc04380e18288ce6D30E002"
       abi: MinimalProxyHRFactory
-      startBlock: 7495970
+      # Keep a safety buffer before deployment block to tolerate reorg rewinds.
+      startBlock: 7495470
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
