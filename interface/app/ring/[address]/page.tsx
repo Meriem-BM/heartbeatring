@@ -36,7 +36,7 @@ export default async function RingPage({ params, searchParams }: RingPageProps) 
   if (!selectedNetwork.hasFactory) {
     return (
       <RingPageState
-        description={`Set ${selectedNetwork.factoryEnvLabel} before opening ${selectedNetwork.label.toLowerCase()} ring detail pages.`}
+        description={`Factory is not configured yet for ${selectedNetwork.label.toLowerCase()}. Open a testnet ring instead.`}
         networkKey={selectedNetwork.key}
         title="Factory address missing"
         tone="error"

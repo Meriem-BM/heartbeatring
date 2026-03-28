@@ -75,9 +75,8 @@ export function CreateRingModal({
 
         {!isFactoryAvailable ? (
           <Notice tone="error" className="mt-6">
-            Set{" "}
-            <code className="font-mono">{selectedNetwork.factoryEnvLabel}</code>{" "}
-            to create or browse rings on {selectedNetwork.label.toLowerCase()}.
+            Factory is not configured yet for {selectedNetwork.label.toLowerCase()}.
+            Use testnet for now.
           </Notice>
         ) : !isConnected ? (
           <div className="mt-6 space-y-4 rounded-xl border border-gray-800 bg-gray-950 p-5">

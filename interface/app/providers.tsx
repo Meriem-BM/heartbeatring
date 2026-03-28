@@ -3,17 +3,28 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { Suspense, useState, type ReactNode } from "react";
-import { WagmiProvider, createConfig, http, injected } from "wagmi";
+import { WagmiProvider, createConfig, fallback, http, injected } from "wagmi";
 
 import { WalletProvider } from "@/context/wallet-context";
 import { rootstockMainnet, rootstockTestnet } from "@/lib/chain/config";
+
+function createRpcTransport(urls: readonly string[]) {
+  const transports = urls.map((url) => http(url));
+  return transports.length > 1 ? fallback(transports) : transports[0];
+}
 
 const wagmiConfig = createConfig({
   chains: [rootstockTestnet, rootstockMainnet],
   connectors: [injected({ shimDisconnect: true })],
   transports: {
-    [rootstockTestnet.id]: http(rootstockTestnet.rpcUrls.default.http[0]),
-    [rootstockMainnet.id]: http(rootstockMainnet.rpcUrls.default.http[0]),
+    [rootstockTestnet.id]: createRpcTransport([
+      "/api/rpc/testnet",
+      ...rootstockTestnet.rpcUrls.default.http,
+    ]),
+    [rootstockMainnet.id]: createRpcTransport([
+      "/api/rpc/mainnet",
+      ...rootstockMainnet.rpcUrls.default.http,
+    ]),
   },
   ssr: true,
 });

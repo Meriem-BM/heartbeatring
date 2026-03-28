@@ -50,12 +50,8 @@ export function RingBrowser() {
 
         {!selectedNetwork.hasFactory && (
           <Notice tone="error" title="Factory address missing." className="p-5">
-            Set{" "}
-            <code className="font-mono">
-              {selectedNetwork.factoryEnvLabel}
-            </code>{" "}
-            to browse or create HeartbeatRing instances on{" "}
-            {selectedNetwork.label.toLowerCase()}.
+            Factory is not configured yet for {selectedNetwork.label.toLowerCase()}.
+            Use testnet for now.
           </Notice>
         )}
 

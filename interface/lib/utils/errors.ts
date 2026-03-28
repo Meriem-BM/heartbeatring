@@ -59,6 +59,14 @@ function sanitizeErrorMessage(message: string) {
     return LOGS_UNAVAILABLE_MESSAGE;
   }
 
+  if (/json is not a valid request object/i.test(normalized)) {
+    return "Selected RPC endpoint rejected the request format. Check ROOTSTOCK_RPC_URL_* server envs or switch to a compatible RPC.";
+  }
+
+  if (/api key limit exceeded/i.test(normalized)) {
+    return "Selected RPC endpoint rate limit exceeded. Try again shortly or switch RPC endpoint.";
+  }
+
   return normalized;
 }
 
@@ -73,4 +81,3 @@ export function getErrorMessage(error: unknown, fallback = "Transaction failed."
 
   return fallback;
 }
-

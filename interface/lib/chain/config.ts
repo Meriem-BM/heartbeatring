@@ -1,19 +1,62 @@
 import {
   createPublicClient,
   defineChain,
+  fallback,
   getAddress,
   http,
-  isAddress,
   zeroAddress,
 } from "viem";
 import type { Address, Chain } from "viem";
+
+const DEFAULT_ROOTSTOCK_TESTNET_RPC_URL = "https://public-node.testnet.rsk.co";
+const DEFAULT_ROOTSTOCK_MAINNET_RPC_URL = "https://public-node.rsk.co";
+const CLIENT_TESTNET_RPC_PROXY_PATH = "/api/rpc/testnet";
+const CLIENT_MAINNET_RPC_PROXY_PATH = "/api/rpc/mainnet";
+
+function resolveUrl(value: string | undefined, fallback: string) {
+  const candidate = value?.trim();
+  return candidate && candidate.length > 0 ? candidate : fallback;
+}
+
+function uniqueRpcUrls(values: readonly string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function createRpcTransport(urls: readonly string[]) {
+  const transports = urls.map((url) => http(url));
+  return transports.length > 1 ? fallback(transports) : transports[0];
+}
+
+function resolveServerRpcUrl(networkKey: HeartbeatNetworkKey) {
+  if (networkKey === "mainnet") {
+    return resolveUrl(
+      process.env.ROOTSTOCK_RPC_URL_MAINNET?.trim() ||
+        process.env.ROOTSTOCK_RPC_URL?.trim(),
+      DEFAULT_ROOTSTOCK_MAINNET_RPC_URL,
+    );
+  }
+
+  return resolveUrl(
+    process.env.ROOTSTOCK_RPC_URL_TESTNET?.trim() ||
+      process.env.ROOTSTOCK_RPC_URL?.trim(),
+    DEFAULT_ROOTSTOCK_TESTNET_RPC_URL,
+  );
+}
+
+function getClientRpcProxyPath(networkKey: HeartbeatNetworkKey) {
+  return networkKey === "mainnet"
+    ? CLIENT_MAINNET_RPC_PROXY_PATH
+    : CLIENT_TESTNET_RPC_PROXY_PATH;
+}
 
 export const rootstockTestnet = defineChain({
   id: 31,
   name: "Rootstock Testnet",
   nativeCurrency: { name: "tRBTC", symbol: "tRBTC", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://public-node.testnet.rsk.co"] },
+    default: {
+      http: [DEFAULT_ROOTSTOCK_TESTNET_RPC_URL],
+    },
   },
   blockExplorers: {
     default: {
@@ -29,7 +72,9 @@ export const rootstockMainnet = defineChain({
   name: "Rootstock Mainnet",
   nativeCurrency: { name: "RBTC", symbol: "RBTC", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://public-node.rsk.co"] },
+    default: {
+      http: [DEFAULT_ROOTSTOCK_MAINNET_RPC_URL],
+    },
   },
   blockExplorers: {
     default: {
@@ -44,12 +89,9 @@ export type HeartbeatNetworkKey = "testnet" | "mainnet";
 type HeartbeatNetworkDefinition = {
   chain: Chain;
   factoryAddress: Address;
-  factoryEnvLabel: string;
   key: HeartbeatNetworkKey;
   label: string;
-  logsRpcUrl: string;
   longLabel: string;
-  rpcUrl: string;
   subgraphUrl: string | null;
 };
 
@@ -58,30 +100,15 @@ export const DEFAULT_HEARTBEAT_NETWORK_KEY: HeartbeatNetworkKey = "testnet";
 export const DEFAULT_TESTNET_FACTORY_ADDRESS = getAddress(
   "0xf3e5fe303E01546a6Cc04380e18288ce6D30E002",
 );
-
-function normalizeFactoryAddress(
-  value: string | undefined,
-  fallback: Address = zeroAddress,
-) {
-  if (value && isAddress(value)) {
-    return getAddress(value);
-  }
-
-  return fallback;
-}
+export const DEFAULT_MAINNET_FACTORY_ADDRESS = zeroAddress;
 
 const heartbeatNetworkMap = {
   mainnet: {
     chain: rootstockMainnet,
-    factoryAddress: normalizeFactoryAddress(process.env.NEXT_PUBLIC_FACTORY_ADDRESS_MAINNET),
-    factoryEnvLabel: "NEXT_PUBLIC_FACTORY_ADDRESS_MAINNET",
+    factoryAddress: DEFAULT_MAINNET_FACTORY_ADDRESS,
     key: "mainnet",
     label: "Mainnet",
-    logsRpcUrl:
-      process.env.NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_MAINNET?.trim() ||
-      rootstockMainnet.rpcUrls.default.http[0],
     longLabel: "Rootstock Mainnet",
-    rpcUrl: rootstockMainnet.rpcUrls.default.http[0],
     subgraphUrl:
       process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_MAINNET?.trim() ||
       process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL?.trim() ||
@@ -89,21 +116,10 @@ const heartbeatNetworkMap = {
   },
   testnet: {
     chain: rootstockTestnet,
-    factoryAddress: normalizeFactoryAddress(
-      process.env.NEXT_PUBLIC_FACTORY_ADDRESS_TESTNET ??
-        process.env.NEXT_PUBLIC_FACTORY_ADDRESS,
-      DEFAULT_TESTNET_FACTORY_ADDRESS,
-    ),
-    factoryEnvLabel:
-      "NEXT_PUBLIC_FACTORY_ADDRESS_TESTNET or NEXT_PUBLIC_FACTORY_ADDRESS",
+    factoryAddress: DEFAULT_TESTNET_FACTORY_ADDRESS,
     key: "testnet",
     label: "Testnet",
-    logsRpcUrl:
-      process.env.NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_TESTNET?.trim() ||
-      process.env.NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL?.trim() ||
-      rootstockTestnet.rpcUrls.default.http[0],
     longLabel: "Rootstock Testnet",
-    rpcUrl: rootstockTestnet.rpcUrls.default.http[0],
     subgraphUrl:
       process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_TESTNET?.trim() ||
       process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL?.trim() ||
@@ -153,20 +169,25 @@ export function createPublicClientForNetwork(
   networkKey?: HeartbeatNetworkKey | string | string[] | null,
 ) {
   const network = getHeartbeatNetwork(networkKey);
+  const rpcUrls =
+    typeof window === "undefined"
+      ? uniqueRpcUrls([
+          resolveServerRpcUrl(network.key),
+          ...network.chain.rpcUrls.default.http,
+        ])
+      : uniqueRpcUrls([
+          getClientRpcProxyPath(network.key),
+          ...network.chain.rpcUrls.default.http,
+        ]);
 
   return createPublicClient({
     chain: network.chain,
-    transport: http(network.rpcUrl),
+    transport: createRpcTransport(rpcUrls),
   });
 }
 
 export function createLogsPublicClientForNetwork(
   networkKey?: HeartbeatNetworkKey | string | string[] | null,
 ) {
-  const network = getHeartbeatNetwork(networkKey);
-
-  return createPublicClient({
-    chain: network.chain,
-    transport: http(network.logsRpcUrl),
-  });
+  return createPublicClientForNetwork(networkKey);
 }

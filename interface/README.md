@@ -14,16 +14,21 @@ The interface ships with the current Rootstock testnet factory baked in:
 0xf3e5fe303E01546a6Cc04380e18288ce6D30E002
 ```
 
-For network overrides:
+Factory addresses are maintained in [`lib/chain/config.ts`](./lib/chain/config.ts):
+- Testnet: configured to the active deployed factory.
+- Mainnet: placeholder (`0x000...000`) until deployment.
+
+Optional runtime overrides:
 
 ```bash
-NEXT_PUBLIC_FACTORY_ADDRESS_TESTNET=0x...
-NEXT_PUBLIC_FACTORY_ADDRESS_MAINNET=0x...
-NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_TESTNET=https://your-testnet-logs-rpc
-NEXT_PUBLIC_ROOTSTOCK_LOGS_RPC_URL_MAINNET=https://your-mainnet-logs-rpc
+ROOTSTOCK_RPC_URL_TESTNET=https://your-testnet-rpc
+ROOTSTOCK_RPC_URL_MAINNET=https://your-mainnet-rpc
+
 NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_TESTNET=https://your-testnet-subgraph
 NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_MAINNET=https://your-mainnet-subgraph
 ```
+
+`ROOTSTOCK_*` values are server-only and routed via `/api/rpc/*`, so the upstream RPC URL is not exposed in browser requests.
 
 Then run the development server:
 
