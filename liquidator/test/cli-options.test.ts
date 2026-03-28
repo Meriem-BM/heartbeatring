@@ -27,11 +27,9 @@ describe("cli options", () => {
     expect(parsed.dryRun).toBe(false);
   });
 
-  test("help text includes watch mode and ws env guidance", () => {
+  test("help text includes watch mode guidance", () => {
     const help = helpText();
 
     expect(help.includes("--watch")).toBe(true);
-    expect(help.includes("LIQUIDATOR_TESTNET_WS_RPC_URL")).toBe(true);
-    expect(help.includes("LIQUIDATOR_MAINNET_WS_RPC_URL")).toBe(true);
   });
 });

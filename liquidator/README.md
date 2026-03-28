@@ -2,13 +2,12 @@
 
 CLI for HeartbeatRing liquidation. It supports:
 - one-shot execution (single scan + optional transactions)
-- continuous watch mode (`--watch`) that reacts to each new block header via WebSocket subscriptions
+- continuous watch mode (`--watch`) that reacts to each new block header via RPC polling
 
 ## Requirements
 
 - Bun `1.3+`
 - Rootstock RPC URL(s) for the network(s) you want to run
-- Rootstock WebSocket RPC URL(s) for watch mode
 - Factory address per network
 - Private key per network for live runs (not required for `--dry-run`)
 
@@ -30,11 +29,9 @@ cp .env.example .env
 3. Set required values in `.env`:
 
 - `LIQUIDATOR_TESTNET_RPC_URL`
-- `LIQUIDATOR_TESTNET_WS_RPC_URL` (required for `--watch`)
 - `LIQUIDATOR_TESTNET_FACTORY_ADDRESS`
 - `LIQUIDATOR_TESTNET_PRIVATE_KEY` (required unless using `--dry-run`)
 - `LIQUIDATOR_MAINNET_RPC_URL`
-- `LIQUIDATOR_MAINNET_WS_RPC_URL` (required for `--watch`)
 - `LIQUIDATOR_MAINNET_FACTORY_ADDRESS`
 - `LIQUIDATOR_MAINNET_PRIVATE_KEY` (required unless using `--dry-run`)
 - `LIQUIDATOR_MAX_TX_PER_RUN` (optional, default: `5`)
@@ -97,7 +94,7 @@ bun run liquidator --network both --max-tx 5
 - Candidates are processed in deterministic order.
 - The transaction cap is always enforced per run.
 - A failed liquidation does not stop the remaining run.
-- Watch mode uses WebSocket `newHeads` subscriptions and reconnects with exponential backoff (`1s`, `2s`, `4s`, ... up to `30s`).
+- Watch mode polls block numbers and reconnects with exponential backoff (`1s`, `2s`, `4s`, ... up to `30s`).
 - Watch mode prevents overlapping runs per network and coalesces multiple block triggers into one follow-up run.
 
 ## Autostart (systemd)

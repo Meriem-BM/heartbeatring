@@ -92,8 +92,5 @@ export function helpText() {
     "  --dry-run    Detect and report candidates without sending transactions.",
     "  --watch      Continuous mode: run once at startup, then on each new block via polling.",
     "  --help       Show this help output.",
-    "",
-    "Optional env:",
-    "  LIQUIDATOR_TESTNET_WS_RPC_URL / LIQUIDATOR_MAINNET_WS_RPC_URL (validated when provided).",
   ].join("\n");
 }

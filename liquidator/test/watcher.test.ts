@@ -18,7 +18,6 @@ function networkConfig(key: NetworkKey): NetworkRuntimeConfig {
     key,
     privateKey: undefined,
     rpcUrl: "https://public-node.testnet.rsk.co",
-    wsRpcUrl: "wss://public-node.testnet.rsk.co/ws",
   };
 }
 

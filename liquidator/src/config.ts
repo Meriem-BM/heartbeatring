@@ -22,30 +22,19 @@ const envKeysByNetwork = {
     factory: "LIQUIDATOR_MAINNET_FACTORY_ADDRESS",
     privateKey: "LIQUIDATOR_MAINNET_PRIVATE_KEY",
     rpcUrl: "LIQUIDATOR_MAINNET_RPC_URL",
-    wsRpcUrl: "LIQUIDATOR_MAINNET_WS_RPC_URL",
   },
   testnet: {
     factory: "LIQUIDATOR_TESTNET_FACTORY_ADDRESS",
     privateKey: "LIQUIDATOR_TESTNET_PRIVATE_KEY",
     rpcUrl: "LIQUIDATOR_TESTNET_RPC_URL",
-    wsRpcUrl: "LIQUIDATOR_TESTNET_WS_RPC_URL",
   },
 } as const satisfies Record<
   NetworkKey,
-  { factory: string; privateKey: string; rpcUrl: string; wsRpcUrl: string }
+  { factory: string; privateKey: string; rpcUrl: string }
 >;
 
 function isValidPrivateKey(raw: string) {
   return isHex(raw) && raw.length === 66;
-}
-
-function isValidWsRpcUrl(raw: string) {
-  try {
-    const parsed = new URL(raw);
-    return parsed.protocol === "ws:" || parsed.protocol === "wss:";
-  } catch {
-    return false;
-  }
 }
 
 function readEnv(
@@ -85,7 +74,6 @@ export function loadRuntimeConfig(
   for (const key of selectedNetworks(options.network)) {
     const envKeys = envKeysByNetwork[key];
     const rpcUrl = readEnv(env, envKeys.rpcUrl);
-    const wsRpcUrl = readEnv(env, envKeys.wsRpcUrl);
     const factoryRaw = readEnv(env, envKeys.factory);
     const privateKeyRaw = readEnv(env, envKeys.privateKey);
     const networkIssues: string[] = [];
@@ -112,10 +100,6 @@ export function loadRuntimeConfig(
       );
     }
 
-    if (wsRpcUrl && !isValidWsRpcUrl(wsRpcUrl)) {
-      networkIssues.push(`${envKeys.wsRpcUrl} must be a valid ws:// or wss:// URL.`);
-    }
-
     if (networkIssues.length > 0) {
       issues.push(...networkIssues.map((message) => `${key}: ${message}`));
       continue;
@@ -127,7 +111,6 @@ export function loadRuntimeConfig(
       key,
       privateKey: privateKeyRaw ? (privateKeyRaw as `0x${string}`) : undefined,
       rpcUrl,
-      wsRpcUrl: wsRpcUrl || undefined,
     });
   }
 

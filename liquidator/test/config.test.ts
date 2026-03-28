@@ -24,39 +24,13 @@ function options(overrides: Partial<ParsedCliOptions> = {}): ParsedCliOptions {
 }
 
 describe("runtime config", () => {
-  test("one-shot mode does not require ws rpc url", () => {
+  test("one-shot mode loads without optional extras", () => {
     const runtime = loadRuntimeConfig(baseEnv(), options({ watch: false }));
     expect(runtime.networks.length).toBe(1);
-    expect(runtime.networks[0]?.wsRpcUrl).toBeUndefined();
   });
 
-  test("watch mode does not require ws rpc url", () => {
+  test("watch mode uses the same runtime config surface", () => {
     const runtime = loadRuntimeConfig(baseEnv(), options({ watch: true }));
     expect(runtime.networks.length).toBe(1);
-    expect(runtime.networks[0]?.wsRpcUrl).toBeUndefined();
-  });
-
-  test("invalid ws rpc url is rejected", () => {
-    expect(() =>
-      loadRuntimeConfig(
-        {
-          ...baseEnv(),
-          LIQUIDATOR_TESTNET_WS_RPC_URL: "https://not-websocket.example.com",
-        },
-        options({ watch: true }),
-      ),
-    ).toThrow("LIQUIDATOR_TESTNET_WS_RPC_URL must be a valid ws:// or wss:// URL.");
-  });
-
-  test("watch mode accepts valid ws rpc url", () => {
-    const runtime = loadRuntimeConfig(
-      {
-        ...baseEnv(),
-        LIQUIDATOR_TESTNET_WS_RPC_URL: "wss://public-node.testnet.rsk.co/ws",
-      },
-      options({ watch: true }),
-    );
-
-    expect(runtime.networks[0]?.wsRpcUrl).toBe("wss://public-node.testnet.rsk.co/ws");
   });
 });

@@ -17,7 +17,6 @@ export type NetworkRuntimeConfig = {
   key: NetworkKey;
   privateKey?: Hex;
   rpcUrl: string;
-  wsRpcUrl?: string;
 };
 
 export type LiquidatorRunOptions = {
