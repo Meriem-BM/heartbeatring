@@ -66,6 +66,10 @@ export function CreateRingForm({
               </option>
             ))}
           </select>
+          <p className="text-xs text-gray-500">
+            Minimum 3 minutes. Very short epochs can cause liquidation timing edge
+            cases across blocks.
+          </p>
         </label>
 
         <label className="space-y-2">
@@ -85,6 +89,10 @@ export function CreateRingForm({
               </option>
             ))}
           </select>
+          <p className="text-xs text-gray-500">
+            Deadline is epoch start + grace. Example: 2m epoch + 30s grace means
+            liquidation can start 30s into each epoch.
+          </p>
         </label>
 
         <label className="space-y-2">

@@ -41,8 +41,9 @@ export function RingVisualizer({ ringAddress }: RingAddressProps) {
         <div>
           <p className="text-lg font-medium text-gray-100">Ring Visualizer</p>
           <p className="mt-2 text-sm text-gray-400">
-            Green nodes are alive, amber nodes are delinquent, and red nodes
-            have dropped out.
+            Green nodes are alive, amber nodes are currently liquidatable
+            (missed this epoch&apos;s heartbeat after grace), and red nodes have
+            dropped out.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-gray-400">

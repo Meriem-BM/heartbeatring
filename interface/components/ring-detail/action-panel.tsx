@@ -53,9 +53,14 @@ export function ActionPanel({ ringAddress }: RingAddressProps) {
             busy={actionState.busy}
             currentEpoch={actionState.currentEpoch}
             delinquentAddresses={actionState.delinquentAddresses}
+            heartbeatGraceRemainingSeconds={
+              actionState.heartbeatGraceRemainingSeconds
+            }
+            heartbeatLiquidatableNow={actionState.heartbeatLiquidatableNow}
             heartbeatSent={actionState.heartbeatSent}
             inRing={actionState.inRing}
             isConnected={actionState.isConnected}
+            lastHeartbeatEpoch={actionState.lastHeartbeatEpoch}
             runAction={actionState.runAction}
             setTargetAddress={actionState.setTargetAddress}
             targetAddress={actionState.targetAddress}

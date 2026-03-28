@@ -18,8 +18,10 @@ export const DEFAULT_CREATE_RING_FORM_STATE: CreateRingFormState = {
   bountyPercent: "1",
 };
 
+export const MIN_EPOCH_DURATION_SECONDS = 180;
+
 export const EPOCH_DURATION_OPTIONS = [
-  { label: "2 min", value: 120 },
+  { label: "3 min", value: 180 },
   { label: "5 min", value: 300 },
   { label: "15 min", value: 900 },
   { label: "1 hour", value: 3_600 },
@@ -64,6 +66,13 @@ export function buildCreateRingArgs(formState: CreateRingFormState) {
 
   if (!Number.isFinite(parsedBounty) || parsedBounty < 0 || parsedBounty > 5) {
     throw new Error("Liquidation bounty must be between 0% and 5%.");
+  }
+
+  if (
+    !Number.isFinite(selectedEpochDuration) ||
+    selectedEpochDuration < MIN_EPOCH_DURATION_SECONDS
+  ) {
+    throw new Error("Epoch duration must be at least 3 minutes.");
   }
 
   if (

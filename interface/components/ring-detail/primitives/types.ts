@@ -30,9 +30,12 @@ export type ActiveSectionProps = {
   busy: boolean;
   currentEpoch: bigint;
   delinquentAddresses: Address[];
+  heartbeatGraceRemainingSeconds: number;
+  heartbeatLiquidatableNow: boolean;
   heartbeatSent: boolean;
   inRing: boolean;
   isConnected: boolean;
+  lastHeartbeatEpoch: bigint;
   runAction: RunAction;
   setTargetAddress: (value: string) => void;
   targetAddress: string;

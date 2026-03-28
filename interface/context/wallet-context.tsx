@@ -40,7 +40,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
     ? resolveHeartbeatNetworkKeyFromChainId(chainId)
     : null;
   const selectedNetwork = useMemo(
-    () => getHeartbeatNetwork(walletNetworkKey ?? searchParamNetworkKey),
+    () => getHeartbeatNetwork(searchParamNetworkKey ?? walletNetworkKey),
     [searchParamNetworkKey, walletNetworkKey],
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type UseCountdownOptions = {
   enabled: boolean;
@@ -13,29 +13,46 @@ export function useCountdown({
   onElapsed,
   value,
 }: UseCountdownOptions) {
-  const [countdown, setCountdown] = useState(value);
+  const [countdown, setCountdown] = useState(Math.max(value, 0));
+  const elapsedNotifiedRef = useRef(false);
 
   useEffect(() => {
-    setCountdown(value);
+    const nextValue = Math.max(value, 0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCountdown(nextValue);
+
+    if (nextValue > 0) {
+      elapsedNotifiedRef.current = false;
+    }
   }, [value]);
 
   useEffect(() => {
-    if (!enabled || value <= 0) return;
+    if (!enabled) {
+      return;
+    }
 
     const interval = window.setInterval(() => {
-      setCountdown((current) => {
-        if (current <= 1) {
-          window.clearInterval(interval);
-          onElapsed?.();
-          return 0;
-        }
-
-        return current - 1;
-      });
+      setCountdown((current) => (current <= 1 ? 0 : current - 1));
     }, 1_000);
 
     return () => window.clearInterval(interval);
-  }, [enabled, onElapsed, value]);
+  }, [enabled]);
 
-  return countdown;
+  useEffect(() => {
+    if (!enabled || countdown > 0) {
+      if (!enabled) {
+        elapsedNotifiedRef.current = false;
+      }
+      return;
+    }
+
+    if (elapsedNotifiedRef.current) {
+      return;
+    }
+
+    elapsedNotifiedRef.current = true;
+    onElapsed?.();
+  }, [countdown, enabled, onElapsed]);
+
+  return enabled ? countdown : 0;
 }

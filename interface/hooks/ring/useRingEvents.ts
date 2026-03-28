@@ -45,16 +45,22 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
             ringAddress: normalizedAddress,
             tokenSymbol: selectedNetwork.chain.nativeCurrency.symbol,
           });
-
-          if (subgraphEntries.length > 0) {
-            return subgraphEntries;
-          }
         } catch (error) {
           subgraphError = error;
         }
       }
 
+      const baseEntries =
+        subgraphEntries && subgraphEntries.length > 0
+          ? mergeEventEntries(accumulatedEntriesRef.current, subgraphEntries)
+          : accumulatedEntriesRef.current;
+
       if (logsUnavailableRef.current) {
+        if (baseEntries.length > 0) {
+          accumulatedEntriesRef.current = baseEntries;
+          return baseEntries;
+        }
+
         if (subgraphError) {
           throw subgraphError;
         }
@@ -63,7 +69,7 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
           throw new Error(LOGS_UNAVAILABLE_MESSAGE);
         }
 
-        return subgraphEntries ?? accumulatedEntriesRef.current;
+        return baseEntries;
       }
 
       try {
@@ -75,7 +81,8 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
 
         if (fromBlock > latestBlock) {
           lastProcessedBlockRef.current = latestBlock;
-          return accumulatedEntriesRef.current;
+          accumulatedEntriesRef.current = baseEntries;
+          return baseEntries;
         }
 
         const logs = await publicClient.getLogs({
@@ -89,10 +96,7 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
           selectedNetwork.chain.nativeCurrency.symbol,
         );
 
-        const merged = mergeEventEntries(
-          accumulatedEntriesRef.current,
-          nextEntries,
-        );
+        const merged = mergeEventEntries(baseEntries, nextEntries);
 
         lastProcessedBlockRef.current = latestBlock;
         accumulatedEntriesRef.current = merged;
@@ -104,6 +108,11 @@ export function useRingEvents({ ringAddress }: RingAddressProps) {
           if (!subgraphError) {
             throw new Error(LOGS_UNAVAILABLE_MESSAGE);
           }
+        }
+
+        if (baseEntries.length > 0) {
+          accumulatedEntriesRef.current = baseEntries;
+          return baseEntries;
         }
 
         if (subgraphError) {

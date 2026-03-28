@@ -31,6 +31,15 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
     query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
 
+  const { data: ringStateReads } = useReadContracts({
+    allowFailure: true,
+    contracts: [
+      { ...contractBase, functionName: "phase" },
+      { ...contractBase, functionName: "currentEpoch" },
+    ],
+    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
+  });
+
   const orderedAddresses = useMemo(() => {
     const aliveAddresses = ((aliveRing ?? []) as Address[]).map((a) => getAddress(a));
     return mergeUniqueAddresses(registeredAddresses, aliveAddresses);
@@ -63,22 +72,31 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
   });
 
   const nodes = useMemo(
-    () =>
-      orderedAddresses.map((address, index) => {
+    () => {
+      const phase = Number(pickResult(ringStateReads, 0, 0));
+      const currentEpoch = pickResult(ringStateReads, 1, 0n);
+
+      return orderedAddresses.map((address, index) => {
         const participant = pickResult<ParticipantData | undefined>(
           participantReads,
           index,
           undefined,
         );
+        const alive = participant?.[4] ?? false;
+        const lastBeat = participant?.[3] ?? 0n;
+        const delinquentOnChain = Boolean(pickResult(delinquentReads, index, false));
+        const heartbeatCurrentEpoch =
+          phase === 1 && currentEpoch > 0n && lastBeat >= currentEpoch;
 
         return {
           address,
-          alive: participant?.[4] ?? false,
+          alive,
           stake: participant?.[2] ?? 0n,
-          delinquent: Boolean(pickResult(delinquentReads, index, false)),
+          delinquent: alive && delinquentOnChain && !heartbeatCurrentEpoch,
         } satisfies RingNode;
-      }),
-    [delinquentReads, orderedAddresses, participantReads],
+      });
+    },
+    [delinquentReads, orderedAddresses, participantReads, ringStateReads],
   );
 
   const activeNodes = useMemo(

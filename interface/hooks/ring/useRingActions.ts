@@ -24,9 +24,12 @@ type UseRingActionsResult = {
   busy: boolean;
   currentEpoch: bigint;
   delinquentAddresses: Address[];
+  heartbeatGraceRemainingSeconds: number;
+  heartbeatLiquidatableNow: boolean;
   heartbeatSent: boolean;
   inRing: boolean;
   isConnected: boolean;
+  lastHeartbeatEpoch: bigint;
   minParticipants: bigint;
   pendingBounty: bigint;
   phase: number;
@@ -61,6 +64,12 @@ export function useRingActions({
   const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [heartbeatEpochAtSubmit, setHeartbeatEpochAtSubmit] = useState<bigint | null>(
+    null,
+  );
+  const [confirmedHeartbeatEpoch, setConfirmedHeartbeatEpoch] = useState<
+    bigint | null
+  >(null);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
@@ -85,6 +94,9 @@ export function useRingActions({
       { ...contractBase, functionName: "totalParticipants" },
       { ...contractBase, functionName: "minParticipants" },
       { ...contractBase, functionName: "currentEpoch" },
+      { ...contractBase, functionName: "epochDuration" },
+      { ...contractBase, functionName: "liquidationGracePeriod" },
+      { ...contractBase, functionName: "timeUntilEpochEnd" },
       { ...contractBase, functionName: "registrationDeadline" },
     ],
     query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
@@ -139,19 +151,31 @@ export function useRingActions({
     setSuccessMessage(ACTION_SUCCESS_MESSAGES[activeAction]);
     setActionError(null);
 
+    if (activeAction === "heartbeat" && heartbeatEpochAtSubmit !== null) {
+      setConfirmedHeartbeatEpoch(heartbeatEpochAtSubmit);
+    }
+
     if (activeAction === "liquidate") {
       setTargetAddress("");
     }
 
     void queryClient.invalidateQueries();
-  }, [activeAction, isConfirmed, queryClient]);
+  }, [activeAction, heartbeatEpochAtSubmit, isConfirmed, queryClient]);
+
+  useEffect(() => {
+    setHeartbeatEpochAtSubmit(null);
+    setConfirmedHeartbeatEpoch(null);
+  }, [normalizedAddress, selectedNetwork.chain.id, connectedAddress]);
 
   const phase = Number(pickResult(coreReads, 0, 0));
   const stakeAmount = pickResult(coreReads, 1, 0n);
   const totalParticipants = pickResult(coreReads, 2, 0n);
   const minParticipants = pickResult(coreReads, 3, 0n);
   const currentEpoch = pickResult(coreReads, 4, 0n);
-  const registrationDeadline = pickResult(coreReads, 5, 0n);
+  const epochDuration = pickResult(coreReads, 5, 0n);
+  const liquidationGracePeriod = pickResult(coreReads, 6, 0n);
+  const timeUntilEpochEnd = pickResult(coreReads, 7, 0n);
+  const registrationDeadline = pickResult(coreReads, 8, 0n);
   const participant = participantData as ParticipantData | undefined;
   const pendingBounty = (pendingBountyData ?? 0n) as bigint;
   const walletStake = participant?.[2] ?? 0n;
@@ -164,7 +188,28 @@ export function useRingActions({
   const delinquentAddresses = ringMembersList.filter((_member, index) =>
     Boolean(pickResult(delinquentReads, index, false)),
   );
-  const heartbeatSent = phase === 1 && currentEpoch > 0n && lastBeat >= currentEpoch;
+  const heartbeatSentOnChain =
+    phase === 1 && currentEpoch > 0n && lastBeat >= currentEpoch;
+  const heartbeatSentEpochZeroLocally =
+    phase === 1 && currentEpoch === 0n && confirmedHeartbeatEpoch === 0n;
+  const heartbeatSent =
+    inRing && (heartbeatSentOnChain || heartbeatSentEpochZeroLocally);
+  const elapsedInEpoch =
+    phase === 1 && epochDuration > 0n
+      ? epochDuration > timeUntilEpochEnd
+        ? epochDuration - timeUntilEpochEnd
+        : 0n
+      : 0n;
+  const heartbeatGraceRemaining =
+    phase === 1 &&
+    currentEpoch > 0n &&
+    inRing &&
+    lastBeat < currentEpoch &&
+    liquidationGracePeriod > elapsedInEpoch
+      ? liquidationGracePeriod - elapsedInEpoch
+      : 0n;
+  const heartbeatLiquidatableNow =
+    phase === 1 && currentEpoch > 0n && inRing && lastBeat < currentEpoch && heartbeatGraceRemaining === 0n;
   const wrongChain = isConnected && !isChainMatched(selectedNetwork.chain.id);
   const busy = isWriting || isConfirming;
 
@@ -200,6 +245,9 @@ export function useRingActions({
           value: stakeAmount,
         });
       } else {
+        if (action === "heartbeat") {
+          setHeartbeatEpochAtSubmit(currentEpoch);
+        }
         hash = await writeContractAsync({ ...contractBase, functionName: action });
       }
 
@@ -215,9 +263,12 @@ export function useRingActions({
     busy,
     currentEpoch,
     delinquentAddresses,
+    heartbeatGraceRemainingSeconds: Number(heartbeatGraceRemaining),
+    heartbeatLiquidatableNow,
     heartbeatSent,
     inRing,
     isConnected,
+    lastHeartbeatEpoch: lastBeat,
     minParticipants,
     networkLabel: selectedNetwork.longLabel,
     pendingBounty,

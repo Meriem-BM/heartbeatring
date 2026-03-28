@@ -1,21 +1,44 @@
-import { truncateAddress } from "@/lib/utils/format";
+import { formatCountdown, truncateAddress } from "@/lib/utils/format";
 
 import type { ActiveSectionProps } from "./types";
 
 function HeartbeatPanel({
   busy,
+  currentEpoch,
+  heartbeatGraceRemainingSeconds,
+  heartbeatLiquidatableNow,
   heartbeatSent,
   inRing,
   isConnected,
+  lastHeartbeatEpoch,
   runAction,
   wrongChain,
 }: Pick<
   ActiveSectionProps,
-  "busy" | "heartbeatSent" | "inRing" | "isConnected" | "runAction" | "wrongChain"
+  | "busy"
+  | "currentEpoch"
+  | "heartbeatGraceRemainingSeconds"
+  | "heartbeatLiquidatableNow"
+  | "heartbeatSent"
+  | "inRing"
+  | "isConnected"
+  | "lastHeartbeatEpoch"
+  | "runAction"
+  | "wrongChain"
 >) {
+  const heartbeatRequiredThisEpoch = inRing && currentEpoch > 0n;
+  const heartbeatPendingThisEpoch =
+    heartbeatRequiredThisEpoch && lastHeartbeatEpoch < currentEpoch;
+
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-gray-100">Heartbeat</p>
+      <p className="text-sm text-gray-400">
+        Current epoch: {currentEpoch.toString()}.
+      </p>
+      <p className="text-sm text-gray-400">
+        Last on-chain heartbeat epoch: {lastHeartbeatEpoch.toString()}.
+      </p>
       <button
         type="button"
         onClick={() => void runAction("heartbeat")}
@@ -29,6 +52,25 @@ function HeartbeatPanel({
           This wallet is not an active participant in the ring.
         </p>
       )}
+      {inRing && currentEpoch === 0n && (
+        <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100">
+          Epoch 0 is warm-up. You must still send again in epoch 1 before grace
+          ends.
+        </p>
+      )}
+      {heartbeatPendingThisEpoch && currentEpoch > 0n && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          Heartbeat for epoch {currentEpoch.toString()} is still pending.{" "}
+          {heartbeatLiquidatableNow
+            ? "You are liquidatable now."
+            : `You become liquidatable in ${formatCountdown(
+                heartbeatGraceRemainingSeconds,
+              )}.`}
+        </p>
+      )}
+      <p className="text-xs text-gray-500">
+        Heartbeats are per-epoch. Sending in epoch 0 does not carry into epoch 1.
+      </p>
     </div>
   );
 }
@@ -98,6 +140,11 @@ function LiquidationPanel({
           </p>
         )}
       </div>
+
+      <p className="text-xs text-gray-500">
+        Liquidations settle one transaction at a time. On short epochs, a target can
+        move in or out of the liquidation window between blocks.
+      </p>
     </div>
   );
 }

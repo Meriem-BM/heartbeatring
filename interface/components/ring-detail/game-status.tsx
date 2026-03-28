@@ -10,6 +10,8 @@ export function GameStatus({ ringAddress }: RingAddressProps) {
   const {
     currentEpoch,
     displayCountdown,
+    heartbeatDeadlineCountdown,
+    heartbeatDeadlinePassed,
     phase,
     phaseMeta,
     ringSize,
@@ -20,6 +22,10 @@ export function GameStatus({ ringAddress }: RingAddressProps) {
     phase === 0 ? "Registration Ends" : phase === 1 ? "Next Epoch" : "Game State";
   const countdownValue =
     phase === 2 ? "Complete" : formatCountdown(displayCountdown);
+  const showHeartbeatDeadline = phase === 1 && currentEpoch > 0n;
+  const heartbeatDeadlineValue = heartbeatDeadlinePassed
+    ? "Open"
+    : formatCountdown(heartbeatDeadlineCountdown);
 
   return (
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
@@ -44,17 +50,36 @@ export function GameStatus({ ringAddress }: RingAddressProps) {
           </span>
         </div>
 
-        <div className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-right">
-          <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
-            {countdownLabel}
-          </p>
-          <p className="mt-1 font-mono text-lg text-gray-100">
-            {countdownValue}
-          </p>
+        <div className="flex gap-3">
+          {showHeartbeatDeadline && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-right">
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-300">
+                Heartbeat Deadline
+              </p>
+              <p className="mt-1 font-mono text-lg text-amber-100">
+                {heartbeatDeadlineValue}
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-right">
+            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
+              {countdownLabel}
+            </p>
+            <p className="mt-1 font-mono text-lg text-gray-100">
+              {countdownValue}
+            </p>
+          </div>
         </div>
       </div>
 
       <p className="mt-4 text-sm text-gray-400">{phaseMeta.footer}</p>
+      {showHeartbeatDeadline && (
+        <p className="mt-2 text-xs text-gray-500">
+          Liquidation checks begin at epoch start + grace, before epoch end on
+          short grace settings.
+        </p>
+      )}
     </section>
   );
 }

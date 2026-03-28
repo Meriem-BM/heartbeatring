@@ -19,7 +19,7 @@ export const GAME_STATUS_PHASE_META = {
   1: {
     label: "Active",
     badgeClass: "border border-amber-500/30 bg-amber-500/10 text-amber-300",
-    footer: "Heartbeats are live.",
+    footer: "Heartbeats are live. Each epoch deadline is epoch start + grace.",
   },
   2: {
     label: "Completed",
