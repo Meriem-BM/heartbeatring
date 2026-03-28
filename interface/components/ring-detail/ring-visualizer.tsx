@@ -18,7 +18,7 @@ export function RingVisualizer({ ringAddress }: RingAddressProps) {
   const normalizedConnectedAddress = connectedAddress
     ? getAddress(connectedAddress)
     : null;
-  const { activeNodes, nodes, phase } = useRingVisualizerData({ ringAddress });
+  const { activeNodes, nodes } = useRingVisualizerData({ ringAddress });
 
   if (nodes.length === 0) {
     return (
@@ -32,7 +32,7 @@ export function RingVisualizer({ ringAddress }: RingAddressProps) {
   }
 
   const positionedNodes = positionRingNodes(nodes);
-  const connectionPairs = buildConnectionPairs(nodes, phase !== 0);
+  const connectionPairs = buildConnectionPairs(nodes);
   const nodeRadius = getRingNodeRadius(nodes.length);
 
   return (

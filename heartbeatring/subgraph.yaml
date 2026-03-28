@@ -1,0 +1,67 @@
+specVersion: 1.3.0
+indexerHints:
+  prune: never
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: MinimalProxyHRFactory
+    network: rootstock-testnet
+    source:
+      address: "0xf3e5fe303E01546a6Cc04380e18288ce6D30E002"
+      abi: MinimalProxyHRFactory
+      startBlock: 7495970
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - RingEvent
+      abis:
+        - name: MinimalProxyHRFactory
+          file: ./abis/MinimalProxyHRFactory.json
+        - name: HeartbeatRing
+          file: ./abis/HeartbeatRing.json
+      eventHandlers:
+        - event: RingCreated(indexed address,indexed address,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleRingCreated
+      file: ./src/factory.ts
+templates:
+  - kind: ethereum
+    name: HeartbeatRing
+    network: rootstock-testnet
+    source:
+      abi: HeartbeatRing
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - RingEvent
+      abis:
+        - name: HeartbeatRing
+          file: ./abis/HeartbeatRing.json
+      eventHandlers:
+        - event: Registered(indexed address,uint256)
+          handler: handleRegistered
+        - event: RegistrationRefunded(indexed address,uint256)
+          handler: handleRegistrationRefunded
+        - event: RingFormed(uint256,uint256)
+          handler: handleRingFormed
+        - event: Heartbeat(indexed address,indexed uint256)
+          handler: handleHeartbeat
+        - event: Liquidated(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleLiquidated
+        - event: RingRelinked(address,address,uint256)
+          handler: handleRingRelinked
+        - event: GameOver(uint256,uint256)
+          handler: handleGameOver
+        - event: Claimed(indexed address,uint256)
+          handler: handleClaimed
+        - event: BountyAccrued(indexed address,uint256)
+          handler: handleBountyAccrued
+        - event: BountyWithdrawn(indexed address,uint256)
+          handler: handleBountyWithdrawn
+        - event: Initialized(indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleInitialized
+      file: ./src/heartbeat-ring.ts

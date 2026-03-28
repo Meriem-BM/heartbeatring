@@ -1,0 +1,123 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "participant", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "position", "type": "uint256" }
+    ],
+    "name": "Registered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "participant", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "RegistrationRefunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "uint256", "name": "participants", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "epochDuration", "type": "uint256" }
+    ],
+    "name": "RingFormed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "participant", "type": "address" },
+      { "indexed": true, "internalType": "uint256", "name": "epoch", "type": "uint256" }
+    ],
+    "name": "Heartbeat",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "target", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "leftBeneficiary", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "rightBeneficiary", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "leftShare", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "rightShare", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "bounty", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "epoch", "type": "uint256" }
+    ],
+    "name": "Liquidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "address", "name": "newLeft", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "newRight", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "ringSize", "type": "uint256" }
+    ],
+    "name": "RingRelinked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "uint256", "name": "survivors", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "totalPool", "type": "uint256" }
+    ],
+    "name": "GameOver",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "survivor", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "Claimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "liquidator", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "BountyAccrued",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "liquidator", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "BountyWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "epochDuration", "type": "uint256" },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "liquidationGracePeriod",
+        "type": "uint256"
+      },
+      { "indexed": false, "internalType": "uint256", "name": "minParticipants", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "maxParticipants", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "bountyBps", "type": "uint256" },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "registrationDeadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "Initialized",
+    "type": "event"
+  }
+]

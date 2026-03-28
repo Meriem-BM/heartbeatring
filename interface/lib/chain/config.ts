@@ -50,12 +50,13 @@ type HeartbeatNetworkDefinition = {
   logsRpcUrl: string;
   longLabel: string;
   rpcUrl: string;
+  subgraphUrl: string | null;
 };
 
 export const HEARTBEAT_NETWORK_SEARCH_PARAM = "network";
 export const DEFAULT_HEARTBEAT_NETWORK_KEY: HeartbeatNetworkKey = "testnet";
 export const DEFAULT_TESTNET_FACTORY_ADDRESS = getAddress(
-  "0x52C37e8364290F3A5f293D6D4ef9852B2d7D0542",
+  "0xf3e5fe303E01546a6Cc04380e18288ce6D30E002",
 );
 
 function normalizeFactoryAddress(
@@ -81,6 +82,10 @@ const heartbeatNetworkMap = {
       rootstockMainnet.rpcUrls.default.http[0],
     longLabel: "Rootstock Mainnet",
     rpcUrl: rootstockMainnet.rpcUrls.default.http[0],
+    subgraphUrl:
+      process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_MAINNET?.trim() ||
+      process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL?.trim() ||
+      null,
   },
   testnet: {
     chain: rootstockTestnet,
@@ -99,6 +104,10 @@ const heartbeatNetworkMap = {
       rootstockTestnet.rpcUrls.default.http[0],
     longLabel: "Rootstock Testnet",
     rpcUrl: rootstockTestnet.rpcUrls.default.http[0],
+    subgraphUrl:
+      process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL_TESTNET?.trim() ||
+      process.env.NEXT_PUBLIC_HEARTBEAT_SUBGRAPH_URL?.trim() ||
+      null,
   },
 } as const satisfies Record<HeartbeatNetworkKey, HeartbeatNetworkDefinition>;
 

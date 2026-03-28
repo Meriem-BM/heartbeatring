@@ -1,0 +1,23 @@
+type RingEvent @entity(immutable: true) {
+  id: ID!
+  ring: Bytes!
+  name: String!
+  participant: Bytes
+  target: Bytes
+  survivor: Bytes
+  liquidator: Bytes
+  creator: Bytes
+  epoch: BigInt
+  amount: BigInt
+  totalPool: BigInt
+  participants: BigInt
+  ringSize: BigInt
+  survivors: BigInt
+  leftShare: BigInt
+  rightShare: BigInt
+  bounty: BigInt
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}

@@ -30,6 +30,7 @@ export function useRingStatus({ ringAddress }: RingAddressProps) {
       { ...contractBase, functionName: "totalParticipants" },
       { ...contractBase, functionName: "stakeAmount" },
       { ...contractBase, functionName: "timeUntilEpochEnd" },
+      { ...contractBase, functionName: "registrationDeadline" },
     ],
     query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
   });
@@ -41,12 +42,19 @@ export function useRingStatus({ ringAddress }: RingAddressProps) {
   const totalParticipants = pickResult(data, 3, 0n);
   const stakeAmount = pickResult(data, 4, 0n);
   const epochCountdown = Number(pickResult(data, 5, 0n));
+  const registrationDeadline = pickResult(data, 6, 0n);
+  const now = BigInt(Math.floor(Date.now() / 1_000));
+  const registrationCountdown = Number(
+    registrationDeadline > now ? registrationDeadline - now : 0n,
+  );
+  const countdownValue =
+    phase === 0 ? registrationCountdown : phase === 1 ? epochCountdown : 0;
   const displayCountdown = useCountdown({
-    enabled: phase === 1,
+    enabled: phase === 0 || phase === 1,
     onElapsed: () => {
       void refetch();
     },
-    value: epochCountdown,
+    value: countdownValue,
   });
   const phaseMeta = GAME_STATUS_PHASE_META[phase] ?? GAME_STATUS_PHASE_META[0];
 

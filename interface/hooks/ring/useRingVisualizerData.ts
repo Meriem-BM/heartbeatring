@@ -25,12 +25,6 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
     chainId: selectedNetwork.chain.id,
   } as const;
 
-  const { data: phaseData } = useReadContract({
-    ...contractBase,
-    functionName: "phase",
-    query: { refetchInterval: CONTRACT_POLL_INTERVAL_MS },
-  });
-
   const { data: aliveRing } = useReadContract({
     ...contractBase,
     functionName: "getRing",
@@ -68,8 +62,6 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
     },
   });
 
-  const phase = Number(phaseData ?? 0);
-
   const nodes = useMemo(
     () =>
       orderedAddresses.map((address, index) => {
@@ -97,6 +89,5 @@ export function useRingVisualizerData({ ringAddress }: RingAddressProps) {
   return {
     activeNodes,
     nodes,
-    phase,
   };
 }

@@ -1,0 +1,8 @@
+{
+  "rootstock-testnet": {
+    "MinimalProxyHRFactory": {
+      "address": "0xf3e5fe303E01546a6Cc04380e18288ce6D30E002",
+      "startBlock": 7495970
+    }
+  }
+}

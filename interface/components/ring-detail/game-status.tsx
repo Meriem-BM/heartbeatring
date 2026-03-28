@@ -16,6 +16,10 @@ export function GameStatus({ ringAddress }: RingAddressProps) {
     stakeAmount,
     totalParticipants,
   } = useRingStatus({ ringAddress });
+  const countdownLabel =
+    phase === 0 ? "Registration Ends" : phase === 1 ? "Next Epoch" : "Game State";
+  const countdownValue =
+    phase === 2 ? "Complete" : formatCountdown(displayCountdown);
 
   return (
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
@@ -42,10 +46,10 @@ export function GameStatus({ ringAddress }: RingAddressProps) {
 
         <div className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
-            Next Epoch
+            {countdownLabel}
           </p>
           <p className="mt-1 font-mono text-lg text-gray-100">
-            {phase === 1 ? formatCountdown(displayCountdown) : "--:--"}
+            {countdownValue}
           </p>
         </div>
       </div>

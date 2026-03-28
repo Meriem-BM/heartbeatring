@@ -5,6 +5,7 @@ HeartbeatRing is a Rootstock project with three parts:
 - `contracts/`: Solidity contracts and deployment scripts (Foundry)
 - `interface/`: Next.js web app
 - `liquidator/`: one-shot CLI liquidator bot
+- `subgraph/`: Graph indexer for ring event history
 
 ## What This Project Is
 
@@ -158,3 +159,4 @@ Common options:
 - [contracts/README.md](contracts/README.md)
 - [interface/README.md](interface/README.md)
 - [liquidator/README.md](liquidator/README.md)
+- [subgraph/README.md](subgraph/README.md)
